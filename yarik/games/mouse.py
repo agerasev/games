@@ -1,11 +1,7 @@
 from dataclasses import dataclass
 from random import Random
 import pygame as pg
-from . import utils
-
-
-class Exit(Exception):
-    pass
+from yarik import utils, Exit
 
 
 @dataclass
@@ -70,8 +66,8 @@ def main():
                 screen.blit(item.image, item.pos - item_size / 2)
             screen.blit(player_image, player_pos - player_size / 2)
 
-            text_surface = font.render(f"{counter}", True, "white")
-            screen.blit(text_surface, (10, 10))
+            text = font.render(f"{counter}", True, "white")
+            screen.blit(text, (10, 10))
 
             keys = pg.key.get_pressed()
             if keys[pg.K_UP] or keys[pg.K_w]:
