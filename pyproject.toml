@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "yarik"
+version = "0.1.0"
+description = "Simple games"
+authors = ["Alexey Gerasev <alexey.gerasev@gmail.com>"]
+license = "GPL-3.0"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+pygame = "^2.6.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
