@@ -1,51 +1,83 @@
-# Example file showing a circle moving on screen
-import pygame
+from random import Random
+import pygame as pg
+from . import utils
 
-width = 1280
-height = 720
 
-# pygame setup
-pygame.init()
-screen = pygame.display.set_mode((width, height))
-clock = pygame.time.Clock()
-running = True
-dt = 0.0
+def main():
+    viewport = pg.Vector2(1280, 720)
 
-pos = pygame.Vector2(screen.get_width() / 2, screen.get_height() / 2)
-radius = 40.0
-speed = 300.0
+    pg.init()
+    screen = pg.display.set_mode((viewport.x, viewport.y))
 
-while running:
-    # poll for events
-    # pygame.QUIT event means the user clicked X to close your window
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
+    mouse = pg.transform.scale_by(pg.image.load("assets/mouse.png").convert_alpha(), 2)
+    cheese = pg.transform.scale_by(
+        pg.image.load("assets/cheese.png").convert_alpha(), 2
+    )
 
-    # fill the screen with a color to wipe away anything from last frame
-    screen.fill("black")
+    running = True
 
-    pygame.draw.circle(screen, "red", pos, radius)
+    def play_game():
+        clock = pg.time.Clock()
+        dt = 0.0
+        timeout = 1.0
 
-    keys = pygame.key.get_pressed()
-    if keys[pygame.K_UP] or keys[pygame.K_w]:
-        pos.y -= speed * dt
-    if keys[pygame.K_DOWN] or keys[pygame.K_s]:
-        pos.y += speed * dt
-    if keys[pygame.K_LEFT] or keys[pygame.K_a]:
-        pos.x -= speed * dt
-    if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-        pos.x += speed * dt
+        player_pos = viewport / 2
+        player_size = pg.Vector2(mouse.get_size())
+        speed = 300.0
 
-    pos.x = max(radius, min(pos.x, width - radius))
-    pos.y = max(radius, min(pos.y, height - radius))
+        rng = Random(0xDEADBEEF)
+        item_size = pg.Vector2(cheese.get_size())
+        items = [
+            utils.random_uniform(rng, item_size / 2, viewport - item_size / 2)
+            for i in range(16)
+        ]
 
-    # flip() the display to put your work on screen
-    pygame.display.flip()
+        while True:
+            for event in pg.event.get():
+                if event.type == pg.QUIT:
+                    running = False
+                    break
 
-    # limits FPS to 60
-    # dt is delta time in seconds since last frame, used for framerate-
-    # independent physics.
-    dt = clock.tick(60) / 1000
+            screen.fill("black")
+            for item_pos in items:
+                screen.blit(cheese, item_pos - item_size / 2)
+            screen.blit(mouse, player_pos - player_size / 2)
 
-pygame.quit()
+            keys = pg.key.get_pressed()
+            if keys[pg.K_UP] or keys[pg.K_w]:
+                player_pos.y -= speed * dt
+            if keys[pg.K_DOWN] or keys[pg.K_s]:
+                player_pos.y += speed * dt
+            if keys[pg.K_LEFT] or keys[pg.K_a]:
+                player_pos.x -= speed * dt
+            if keys[pg.K_RIGHT] or keys[pg.K_d]:
+                player_pos.x += speed * dt
+
+            player_pos = utils.clamp(
+                player_pos, player_size / 2, viewport - player_size / 2
+            )
+
+            items = [
+                item_pos
+                for item_pos in items
+                if not utils.overlap(
+                    player_pos, item_pos, player_size / 3, item_size / 3
+                )
+            ]
+            if len(items) == 0:
+                if timeout > 0.0:
+                    timeout -= dt
+                else:
+                    break
+
+            pg.display.flip()
+
+            dt = clock.tick(60) / 1000
+
+    while running:
+        play_game()
+    pg.quit()
+
+
+if __name__ == "__main__":
+    main()
