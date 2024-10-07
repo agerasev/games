@@ -1,100 +1,75 @@
-from dataclasses import dataclass
 from random import Random
-import pygame as pg
-from yarik import utils, Exit
+
+import pygame
+from pygame import Vector2
+
+from yarik import Context, Game, run
 
 
-def main():
-    viewport = pg.Vector2(1280, 720)
+class CountingGame(Game):
+    def __init__(self) -> None:
+        self.item = pygame.transform.scale_by(
+            pygame.image.load("assets/apple.png").convert_alpha(), 4
+        )
+        self.padding = 10
 
-    pg.init()
-    screen = pg.display.set_mode((viewport.x, viewport.y))
+        self.font = pygame.font.Font(None, 160)
+        self.equals = self.font.render("=", True, "white")
 
-    items = [
-        pg.transform.scale_by(pg.image.load(path).convert_alpha(), 4)
-        for path in ["assets/apple.png"]
-    ]
-    padding = 10
+        self.rng = Random()
+        self.number = self.rng.randrange(1, 10)
 
-    font = pg.font.Font(None, 160)
-    equals = font.render("=", True, "white")
+    def step(self, cx: Context) -> None:
+        screen = cx.screen
+        viewport = Vector2(screen.get_size())
 
-    rng = Random()
+        number = self.number
 
-    def play_game():
-        clock = pg.time.Clock()
-        dt = 0.0
-        timeout = 1.0
-
-        number = rng.randrange(1, 10)
-        item = rng.choice(items)
-
-        while True:
-            for event in pg.event.get():
-                if event.type == pg.QUIT:
-                    raise Exit()
-                if event.type == pg.KEYDOWN:
-                    n = {
-                        pg.K_0: 0,
-                        pg.K_1: 1,
-                        pg.K_2: 2,
-                        pg.K_3: 3,
-                        pg.K_4: 4,
-                        pg.K_5: 5,
-                        pg.K_6: 6,
-                        pg.K_7: 7,
-                        pg.K_8: 8,
-                        pg.K_9: 9,
-                    }.get(event.key)
-                    if n is not None:
-                        number = n
-                    else:
-                        if event.key == pg.K_MINUS:
-                            number = max(0, number - 1)
-                        elif event.key == pg.K_EQUALS:
-                            number = min(10, number + 1)
-
-            screen.fill("black")
-            width = padding * (number + number // 5) + item.get_width() * number
-            for i in range(0, number):
-                screen.blit(
-                    item,
-                    (
-                        viewport.x / 2
-                        - width / 2
-                        + padding * (i + 2 * (i // 5))
-                        + item.get_width() * i,
-                        viewport.y / 4 - item.get_height() / 2,
-                    ),
-                )
-            screen.blit(equals, viewport / 2 - pg.Vector2(equals.get_size()) / 2)
-
-            text = font.render(f"{number}", True, "white")
-            screen.blit(
-                text,
-                pg.Vector2(viewport.x / 2, 3 * viewport.y / 4)
-                - pg.Vector2(text.get_size()) / 2,
-            )
-
-            if len(items) == 0:
-                if timeout > 0.0:
-                    timeout -= dt
+        for event in cx.events:
+            if event.type == pygame.KEYDOWN:
+                n = {
+                    pygame.K_0: 0,
+                    pygame.K_1: 1,
+                    pygame.K_2: 2,
+                    pygame.K_3: 3,
+                    pygame.K_4: 4,
+                    pygame.K_5: 5,
+                    pygame.K_6: 6,
+                    pygame.K_7: 7,
+                    pygame.K_8: 8,
+                    pygame.K_9: 9,
+                }.get(event.key)
+                if n is not None:
+                    number = n
                 else:
-                    break
+                    if event.key == pygame.K_MINUS:
+                        number = max(0, number - 1)
+                    elif event.key == pygame.K_EQUALS:
+                        number = min(10, number + 1)
 
-            pg.display.flip()
+        screen.fill("black")
+        width = self.padding * (number + number // 5) + self.item.get_width() * number
+        for i in range(0, number):
+            screen.blit(
+                self.item,
+                (
+                    viewport.x / 2
+                    - width / 2
+                    + self.padding * (i + 2 * (i // 5))
+                    + self.item.get_width() * i,
+                    viewport.y / 4 - self.item.get_height() / 2,
+                ),
+            )
+        screen.blit(self.equals, viewport / 2 - Vector2(self.equals.get_size()) / 2)
 
-            dt = clock.tick(60) / 1000
+        text = self.font.render(f"{number}", True, "white")
+        screen.blit(
+            text,
+            Vector2(viewport.x / 2, 3 * viewport.y / 4) - Vector2(text.get_size()) / 2,
+        )
 
-        return True
-
-    while True:
-        try:
-            play_game()
-        except Exit:
-            break
-    pg.quit()
+        self.number = number
 
 
 if __name__ == "__main__":
-    main()
+    run(CountingGame, (1280, 720))

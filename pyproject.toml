@@ -10,7 +10,14 @@ readme = "README.md"
 python = "^3.11"
 pygame = "^2.6.1"
 
+[tool.poetry.group.dev.dependencies]
+mypy = "^1.11.2"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.mypy]
+strict = true
+namespace_packages = true
+explicit_package_bases = true

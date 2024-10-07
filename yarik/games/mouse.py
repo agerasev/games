@@ -1,115 +1,136 @@
 from dataclasses import dataclass
 from random import Random
-import pygame as pg
-from yarik import utils, Exit
+
+import pygame
+from pygame import Rect, Vector2, Surface
+
+from yarik import utils, Context, Game, run
+
+
+@dataclass
+class Player:
+    pos: Vector2
+    image: Surface
+    size: Vector2
+    speed: float
 
 
 @dataclass
 class Item:
-    pos: pg.Vector2
-    image: pg.Surface
+    pos: Vector2
+    image: Surface
+    size: Vector2
 
 
-def main():
-    viewport = pg.Vector2(1280, 720)
-
-    pg.init()
-    screen = pg.display.set_mode((viewport.x, viewport.y))
-
-    player_image = pg.transform.scale_by(
-        pg.image.load("assets/mouse.png").convert_alpha(), 2
-    )
-    player_size = pg.Vector2(player_image.get_size())
-
-    item_variants = [
-        ("assets/cheese.png", 0.8),
-        ("assets/apple.png", 0.2),
-    ]
-    item_images = [
-        pg.transform.scale_by(pg.image.load(path).convert_alpha(), 2)
-        for path, _ in item_variants
-    ]
-    item_probabilities = [p for _, p in item_variants]
-    item_size = pg.Vector2(item_images[0].get_size())
-    assert all(
-        [item_size == pg.Vector2(item_image.get_size()) for item_image in item_images]
-    )
-
-    font = pg.font.Font(None, 80)
-
-    rng = Random()
-
-    def play_game():
-        clock = pg.time.Clock()
-        dt = 0.0
-        timeout = 1.0
-        counter = 0
-
-        player_pos = viewport / 2
-        speed = 300.0
+class MouseGame(Game):
+    def __init__(self) -> None:
+        self.player_image = pygame.transform.scale_by(
+            pygame.image.load("assets/mouse.png").convert_alpha(), 2
+        )
+        self.player_size = Vector2(self.player_image.get_size())
 
         items = [
+            ("assets/cheese.png", 0.8),
+            ("assets/apple.png", 0.2),
+        ]
+        self.item_images = [
+            pygame.transform.scale_by(pygame.image.load(path).convert_alpha(), 2)
+            for path, _ in items
+        ]
+        self.item_probs = [p for _, p in items]
+        self.item_size = Vector2(self.item_images[0].get_size())
+        assert all(
+            [
+                self.item_size == Vector2(item_image.get_size())
+                for item_image in self.item_images
+            ]
+        )
+
+        self.font = pygame.font.Font(None, 80)
+
+        self.rng = Random()
+        self.session: Session | None = None
+
+    def step(self, cx: Context) -> None:
+        if self.session is None:
+            self.session = Session(self, cx.screen.get_rect())
+
+        try:
+            self.session.step(cx)
+        except StopIteration:
+            self.session = None
+
+
+class Session(Game):
+    def __init__(self, game: MouseGame, viewport: Rect, num_items: int = 16) -> None:
+        self.viewport = viewport
+
+        self.player = Player(
+            pos=Vector2(viewport.center),
+            image=game.player_image,
+            size=game.player_size,
+            speed=300.0,
+        )
+
+        self.items = [
             Item(
-                pos=utils.random_uniform(rng, item_size / 2, viewport - item_size / 2),
-                image=rng.choices(item_images, item_probabilities)[0],
+                pos=utils.random_uniform(
+                    game.rng, utils.expand(viewport, -game.item_size / 2)
+                ),
+                image=game.rng.choices(game.item_images, game.item_probs)[0],
+                size=game.item_size,
             )
-            for i in range(16)
+            for _ in range(num_items)
         ]
 
-        while True:
-            for event in pg.event.get():
-                if event.type == pg.QUIT:
-                    raise Exit()
+        self.font = game.font
 
-            screen.fill("black")
-            for item in items:
-                screen.blit(item.image, item.pos - item_size / 2)
-            screen.blit(player_image, player_pos - player_size / 2)
+        self.timeout = 1.0
+        self.counter = 0
 
-            text = font.render(f"{counter}", True, "white")
-            screen.blit(text, (10, 10))
+    def step(self, cx: Context) -> None:
+        player = self.player
+        screen = cx.screen
 
-            keys = pg.key.get_pressed()
-            if keys[pg.K_UP] or keys[pg.K_w]:
-                player_pos.y -= speed * dt
-            if keys[pg.K_DOWN] or keys[pg.K_s]:
-                player_pos.y += speed * dt
-            if keys[pg.K_LEFT] or keys[pg.K_a]:
-                player_pos.x -= speed * dt
-            if keys[pg.K_RIGHT] or keys[pg.K_d]:
-                player_pos.x += speed * dt
+        cx.screen.fill("black")
+        for item in self.items:
+            cx.screen.blit(item.image, item.pos - item.size / 2)
+        cx.screen.blit(player.image, player.pos - player.size / 2)
 
-            player_pos = utils.clamp(
-                player_pos, player_size / 2, viewport - player_size / 2
-            )
+        text = self.font.render(f"{self.counter}", True, "white")
+        cx.screen.blit(text, (10, 10))
 
-            new_items = []
-            for item in items:
-                if utils.overlap(player_pos, item.pos, player_size / 3, item_size / 3):
-                    counter += 1
-                else:
-                    new_items.append(item)
-            items = new_items
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_UP] or keys[pygame.K_w]:
+            player.pos.y -= player.speed * cx.dt
+        if keys[pygame.K_DOWN] or keys[pygame.K_s]:
+            player.pos.y += player.speed * cx.dt
+        if keys[pygame.K_LEFT] or keys[pygame.K_a]:
+            player.pos.x -= player.speed * cx.dt
+        if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
+            player.pos.x += player.speed * cx.dt
 
-            if len(items) == 0:
-                if timeout > 0.0:
-                    timeout -= dt
-                else:
-                    break
+        player.pos = utils.clamp(
+            player.pos, utils.expand(self.viewport, -player.size / 2)
+        )
 
-            pg.display.flip()
+        new_items = []
+        for item in self.items:
+            if Rect.colliderect(
+                utils.expand(player.pos, player.size / 3),
+                utils.expand(item.pos, item.size / 3),
+            ):
+                self.counter += 1
+            else:
+                new_items.append(item)
+        self.items = new_items
 
-            dt = clock.tick(60) / 1000
-
-        return True
-
-    while True:
-        try:
-            play_game()
-        except Exit:
-            break
-    pg.quit()
+        if len(self.items) == 0:
+            if self.timeout > 0.0:
+                self.timeout -= cx.dt
+            else:
+                raise StopIteration()
 
 
 if __name__ == "__main__":
-    main()
+    run(MouseGame, (1280, 720))

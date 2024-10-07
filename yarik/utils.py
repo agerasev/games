@@ -1,22 +1,35 @@
+from typing import Tuple
 from random import Random
-from pygame import Vector2
+from pygame import Vector2, Rect
 
 
-def clamp(pos: Vector2, a: Vector2, b: Vector2) -> Vector2:
+def expand(
+    rect: Tuple[float, float] | Vector2 | Rect,
+    value: float | Tuple[float, float] | Vector2,
+) -> Rect:
+    "Expand `rect` by `value`"
+
+    if not isinstance(rect, Rect):
+        rect = Rect(rect, (0, 0))
+
+    if isinstance(value, float):
+        value = Vector2(value, value)
+    value = Vector2(value)
+
+    return Rect(rect.topleft - value, rect.size + 2 * value)
+
+
+def clamp(pos: Vector2, rect: Rect) -> Vector2:
+    "Clamp `pos` inside `rect`"
     return Vector2(
-        max(a.x, min(pos.x, b.x)),
-        max(a.y, min(pos.y, b.y)),
+        max(rect.left, min(pos.x, rect.right)),
+        max(rect.top, min(pos.y, rect.bottom)),
     )
 
 
-def overlap(a_pos: Vector2, b_pos: Vector2, a_size: Vector2, b_size: Vector2) -> bool:
-    pos = a_pos - b_pos
-    size = a_size + b_size
-    return abs(pos.x) <= size.x and abs(pos.y) <= size.y
-
-
-def random_uniform(rng: Random, a: Vector2, b: Vector2) -> Vector2:
+def random_uniform(rng: Random, rect: Rect) -> Vector2:
+    "Uniformly sample point inside `rect`"
     return Vector2(
-        rng.uniform(a.x, b.x),
-        rng.uniform(a.y, b.y),
+        rng.uniform(rect.left, rect.right),
+        rng.uniform(rect.top, rect.bottom),
     )
