@@ -4,47 +4,42 @@ from random import Random
 import pygame
 from pygame import Rect, Vector2, Surface
 
-from yarik import utils, Context, Game, run
-
-
-@dataclass
-class Player:
-    pos: Vector2
-    image: Surface
-    size: Vector2
-    speed: float
+from yarik import utils, Context, Game, Image, run
+from yarik.utils import Rect2
 
 
 @dataclass
 class Item:
     pos: Vector2
-    image: Surface
-    size: Vector2
+    image: Image
+    radius: float
+
+    @property
+    def size(self) -> Vector2:
+        return 2 * Vector2(self.radius, self.radius)
 
 
-class MouseGame(Game):
+@dataclass
+class Player(Item):
+    speed: float
+
+
+def blit_scaled(dst: Surface, src: Item, scale: float) -> None:
+    dst.blit(src.image.scale(src.size * scale), (src.pos - src.size / 2) * scale)
+
+
+class CollectingGame(Game):
     def __init__(self) -> None:
-        self.player_image = pygame.transform.scale_by(
-            pygame.image.load("assets/mouse.png").convert_alpha(), 2
-        )
-        self.player_size = Vector2(self.player_image.get_size())
+        self.player_image = Image(pygame.image.load("assets/mouse.png").convert_alpha())
 
         items = [
             ("assets/cheese.png", 0.8),
             ("assets/apple.png", 0.2),
         ]
         self.item_images = [
-            pygame.transform.scale_by(pygame.image.load(path).convert_alpha(), 2)
-            for path, _ in items
+            Image(pygame.image.load(path).convert_alpha()) for path, _ in items
         ]
         self.item_probs = [p for _, p in items]
-        self.item_size = Vector2(self.item_images[0].get_size())
-        assert all(
-            [
-                self.item_size == Vector2(item_image.get_size())
-                for item_image in self.item_images
-            ]
-        )
 
         self.font = pygame.font.Font(None, 80)
 
@@ -53,7 +48,7 @@ class MouseGame(Game):
 
     def step(self, cx: Context) -> None:
         if self.session is None:
-            self.session = Session(self, cx.screen.get_rect())
+            self.session = Session(self, Rect2(0, 0, 42, 24))
 
         try:
             self.session.step(cx)
@@ -62,23 +57,26 @@ class MouseGame(Game):
 
 
 class Session(Game):
-    def __init__(self, game: MouseGame, viewport: Rect, num_items: int = 16) -> None:
+    def __init__(
+        self, game: CollectingGame, viewport: Rect2, num_items: int = 16
+    ) -> None:
         self.viewport = viewport
 
         self.player = Player(
-            pos=Vector2(viewport.center),
+            pos=viewport.center,
             image=game.player_image,
-            size=game.player_size,
-            speed=300.0,
+            radius=1.0,
+            speed=10.0,
         )
 
+        item_radius = 0.5
         self.items = [
             Item(
                 pos=utils.random_uniform(
-                    game.rng, utils.expand(viewport, -game.item_size / 2)
+                    game.rng, utils.expand(viewport, -item_radius)
                 ),
                 image=game.rng.choices(game.item_images, game.item_probs)[0],
-                size=game.item_size,
+                radius=item_radius,
             )
             for _ in range(num_items)
         ]
@@ -89,13 +87,15 @@ class Session(Game):
         self.counter = 0
 
     def step(self, cx: Context) -> None:
+        scale = 32.0
+
         player = self.player
         screen = cx.screen
 
         cx.screen.fill("black")
         for item in self.items:
-            cx.screen.blit(item.image, item.pos - item.size / 2)
-        cx.screen.blit(player.image, player.pos - player.size / 2)
+            blit_scaled(cx.screen, item, scale)
+        blit_scaled(cx.screen, player, scale)
 
         text = self.font.render(f"{self.counter}", True, "white")
         cx.screen.blit(text, (10, 10))
@@ -111,15 +111,12 @@ class Session(Game):
             player.pos.x += player.speed * cx.dt
 
         player.pos = utils.clamp(
-            player.pos, utils.expand(self.viewport, -player.size / 2)
+            player.pos, utils.expand(self.viewport, -player.radius)
         )
 
         new_items = []
         for item in self.items:
-            if Rect.colliderect(
-                utils.expand(player.pos, player.size / 3),
-                utils.expand(item.pos, item.size / 3),
-            ):
+            if player.pos.distance_to(item.pos) < (player.radius + item.radius):
                 self.counter += 1
             else:
                 new_items.append(item)
@@ -133,4 +130,4 @@ class Session(Game):
 
 
 if __name__ == "__main__":
-    run(MouseGame, (1280, 720))
+    run(CollectingGame, (1280, 720))
