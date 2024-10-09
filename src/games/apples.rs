@@ -1,19 +1,21 @@
+use crate::Game;
 use macroquad::{
     color,
-    input::{get_keys_pressed, KeyCode},
-    math::Vec2,
+    input::{get_keys_pressed, is_key_down, KeyCode},
+    math::{Rect, Vec2},
     miniquad::window::screen_size,
     text::draw_text,
     texture::{
         draw_texture_ex, load_texture, set_default_filter_mode, DrawTextureParams, FilterMode,
+        Texture2D,
     },
     window::{clear_background, next_frame},
     Error,
 };
 use rand::{distributions::Uniform, rngs::SmallRng, Rng, SeedableRng};
+use std::{future::Future, pin::Pin};
 
-#[macroquad::main("Apples")]
-async fn main() -> Result<(), Error> {
+pub async fn main() -> Result<(), Error> {
     set_default_filter_mode(FilterMode::Nearest);
     let item_texture = load_texture("assets/apple.png").await?;
     let item_size = item_texture.size() * 4.0;
@@ -22,7 +24,7 @@ async fn main() -> Result<(), Error> {
     let mut rng = SmallRng::from_entropy();
     let mut number: i64 = rng.sample(Uniform::new_inclusive(1, 10));
 
-    loop {
+    while !is_key_down(KeyCode::Escape) {
         let viewport = Vec2::from(screen_size());
 
         {
@@ -79,5 +81,39 @@ async fn main() -> Result<(), Error> {
         );
 
         next_frame().await
+    }
+
+    Ok(())
+}
+
+pub struct ApplesGame {
+    apple: Texture2D,
+}
+
+impl ApplesGame {
+    pub async fn new() -> Result<Self, Error> {
+        set_default_filter_mode(FilterMode::Nearest);
+        Ok(Self {
+            apple: load_texture("assets/apple.png").await?,
+        })
+    }
+}
+
+impl Game for ApplesGame {
+    fn draw_preview(&self, rect: Rect) {
+        draw_texture_ex(
+            &self.apple,
+            rect.x,
+            rect.y,
+            color::WHITE,
+            DrawTextureParams {
+                dest_size: Some(rect.size()),
+                ..Default::default()
+            },
+        );
+    }
+
+    fn launch(&self) -> Pin<Box<dyn Future<Output = Result<(), Error>>>> {
+        Box::pin(main())
     }
 }

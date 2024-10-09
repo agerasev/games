@@ -3,12 +3,6 @@ name = "yarik"
 version = "0.1.0"
 edition = "2021"
 
-[[bin]]
-name = "mouse"
-
-[[bin]]
-name = "apples"
-
 [dependencies]
 macroquad = "0.4.13"
 derive_more = { version = "1.0.0", features = ["deref", "deref_mut"] }

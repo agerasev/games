@@ -1,11 +1,10 @@
-use std::time::Duration;
-
+use crate::Game;
 use derive_more::derive::{Deref, DerefMut};
 use futures::{future::try_join_all, TryFutureExt};
 use macroquad::{
     color,
     input::{is_key_down, KeyCode},
-    math::Vec2,
+    math::{Rect, Vec2},
     miniquad::window::screen_size,
     shapes::draw_rectangle_lines,
     text::draw_text,
@@ -22,6 +21,7 @@ use rand::{
     rngs::SmallRng,
     Rng, SeedableRng,
 };
+use std::{future::Future, pin::Pin, time::Duration};
 
 #[derive(Clone, Debug)]
 pub struct Item {
@@ -53,8 +53,7 @@ pub struct Player {
     pub speed: f32,
 }
 
-#[macroquad::main("Mouse")]
-async fn main() -> Result<(), Error> {
+pub async fn main() -> Result<(), Error> {
     set_default_filter_mode(FilterMode::Nearest);
     let player_image = load_texture("assets/mouse.png").await?;
     let items_images_and_probs = try_join_all(
@@ -100,7 +99,11 @@ async fn main() -> Result<(), Error> {
 
         let mut timeout = Duration::from_secs_f32(1.0);
 
-        'game: loop {
+        loop {
+            if is_key_down(KeyCode::Escape) {
+                return Ok(());
+            }
+
             let scale = (Vec2::from(screen_size()) / map_size).min_element();
             let dt = Duration::from_secs_f32(get_frame_time());
 
@@ -136,7 +139,7 @@ async fn main() -> Result<(), Error> {
 
                 if items.is_empty() {
                     if timeout.is_zero() {
-                        break 'game;
+                        break;
                     } else {
                         timeout = timeout.saturating_sub(dt);
                     }
@@ -172,5 +175,49 @@ async fn main() -> Result<(), Error> {
 
             next_frame().await;
         }
+    }
+}
+
+pub struct MouseGame {
+    mouse: Texture2D,
+    cheese: Texture2D,
+}
+
+impl MouseGame {
+    pub async fn new() -> Result<Self, Error> {
+        set_default_filter_mode(FilterMode::Nearest);
+        Ok(Self {
+            mouse: load_texture("assets/mouse.png").await?,
+            cheese: load_texture("assets/cheese.png").await?,
+        })
+    }
+}
+
+impl Game for MouseGame {
+    fn draw_preview(&self, rect: Rect) {
+        draw_texture_ex(
+            &self.mouse,
+            rect.x,
+            rect.y,
+            color::WHITE,
+            DrawTextureParams {
+                dest_size: Some(rect.size()),
+                ..Default::default()
+            },
+        );
+        draw_texture_ex(
+            &self.cheese,
+            rect.x,
+            rect.y + rect.h / 2.0,
+            color::WHITE,
+            DrawTextureParams {
+                dest_size: Some(rect.size() / 2.0),
+                ..Default::default()
+            },
+        );
+    }
+
+    fn launch(&self) -> Pin<Box<dyn Future<Output = Result<(), Error>>>> {
+        Box::pin(main())
     }
 }
