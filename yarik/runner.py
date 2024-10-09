@@ -18,10 +18,10 @@ class Game:
         raise NotImplementedError()
 
 
-def run(make_game: Callable[[], Game], window_size: tuple[int, int]) -> None:
+def run(make_game: Callable[[], Game], initial_window_size: tuple[int, int]) -> None:
     pygame.init()
 
-    screen = pygame.display.set_mode(window_size)
+    screen = pygame.display.set_mode(initial_window_size, pygame.RESIZABLE)
 
     game = make_game()
 
@@ -34,6 +34,8 @@ def run(make_game: Callable[[], Game], window_size: tuple[int, int]) -> None:
         for event in events:
             if event.type == pygame.QUIT:
                 running = False
+            if event.type == pygame.VIDEORESIZE:
+                screen = pygame.display.set_mode(event.size, pygame.RESIZABLE)
 
         cx = Context(screen, events, dt)
         try:

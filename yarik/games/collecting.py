@@ -48,7 +48,7 @@ class CollectingGame(Game):
 
     def step(self, cx: Context) -> None:
         if self.session is None:
-            self.session = Session(self, Rect2(0, 0, 42, 24))
+            self.session = Session(self, Vector2(42, 24))
 
         try:
             self.session.step(cx)
@@ -58,12 +58,12 @@ class CollectingGame(Game):
 
 class Session(Game):
     def __init__(
-        self, game: CollectingGame, viewport: Rect2, num_items: int = 16
+        self, game: CollectingGame, map_size: Vector2, num_items: int = 16
     ) -> None:
-        self.viewport = viewport
+        self.map_rect = Rect2((0, 0), map_size)
 
         self.player = Player(
-            pos=viewport.center,
+            pos=self.map_rect.center,
             image=game.player_image,
             radius=1.0,
             speed=10.0,
@@ -73,7 +73,7 @@ class Session(Game):
         self.items = [
             Item(
                 pos=utils.random_uniform(
-                    game.rng, utils.expand(viewport, -item_radius)
+                    game.rng, utils.expand(self.map_rect, -item_radius)
                 ),
                 image=game.rng.choices(game.item_images, game.item_probs)[0],
                 radius=item_radius,
@@ -87,7 +87,7 @@ class Session(Game):
         self.counter = 0
 
     def step(self, cx: Context) -> None:
-        scale = 32.0
+        scale = 30.0
 
         player = self.player
         screen = cx.screen
@@ -111,7 +111,7 @@ class Session(Game):
             player.pos.x += player.speed * cx.dt
 
         player.pos = utils.clamp(
-            player.pos, utils.expand(self.viewport, -player.radius)
+            player.pos, utils.expand(self.map_rect, -player.radius)
         )
 
         new_items = []
