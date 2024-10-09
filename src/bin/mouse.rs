@@ -6,6 +6,8 @@ use macroquad::{
     color,
     input::{is_key_down, KeyCode},
     math::Vec2,
+    miniquad::window::screen_size,
+    shapes::draw_rectangle_lines,
     text::draw_text,
     texture::{
         draw_texture_ex, load_texture, set_default_filter_mode, DrawTextureParams, FilterMode,
@@ -29,8 +31,17 @@ pub struct Item {
 }
 
 impl Item {
-    pub fn size(&self) -> Vec2 {
-        2.0 * Vec2::new(self.radius, self.radius)
+    pub fn draw(&self, scale: f32) {
+        draw_texture_ex(
+            &self.image,
+            (self.pos.x - self.radius) * scale,
+            (self.pos.y - self.radius) * scale,
+            color::WHITE,
+            DrawTextureParams {
+                dest_size: Some(scale * 2.0 * Vec2::new(self.radius, self.radius)),
+                ..Default::default()
+            },
+        );
     }
 }
 
@@ -44,6 +55,7 @@ pub struct Player {
 
 #[macroquad::main("Mouse")]
 async fn main() -> Result<(), Error> {
+    set_default_filter_mode(FilterMode::Nearest);
     let player_image = load_texture("assets/mouse.png").await?;
     let items_images_and_probs = try_join_all(
         vec![("assets/cheese.png", 0.8), ("assets/apple.png", 0.2)]
@@ -51,7 +63,6 @@ async fn main() -> Result<(), Error> {
             .map(|(path, prob)| load_texture(path).map_ok(move |t| (t, prob))),
     )
     .await?;
-    set_default_filter_mode(FilterMode::Nearest);
 
     let mut rng = SmallRng::from_entropy();
 
@@ -88,43 +99,10 @@ async fn main() -> Result<(), Error> {
         };
 
         let mut timeout = Duration::from_secs_f32(1.0);
-        let mut counter = 0;
 
         'game: loop {
-            let scale = 30.0;
+            let scale = (Vec2::from(screen_size()) / map_size).min_element();
             let dt = Duration::from_secs_f32(get_frame_time());
-
-            // Draw frame
-            {
-                clear_background(color::BLACK);
-
-                for item in &items {
-                    let scaled_pos = scale * item.pos;
-                    draw_texture_ex(
-                        &item.image,
-                        scaled_pos.x,
-                        scaled_pos.y,
-                        color::WHITE,
-                        DrawTextureParams {
-                            dest_size: Some(scale * item.size()),
-                            ..Default::default()
-                        },
-                    );
-                }
-                let scaled_pos = scale * player.pos;
-                draw_texture_ex(
-                    &player.image,
-                    scaled_pos.x,
-                    scaled_pos.y,
-                    color::WHITE,
-                    DrawTextureParams {
-                        dest_size: Some(scale * player.size()),
-                        ..Default::default()
-                    },
-                );
-
-                draw_text(&format!("{counter}"), 0.0, 20.0, 40.0, color::WHITE);
-            }
 
             // Move player
             {
@@ -144,7 +122,10 @@ async fn main() -> Result<(), Error> {
                 let step = player.speed * dt.as_secs_f32();
                 player.pos += motion * step;
 
-                player.pos = player.pos.clamp(player.size(), map_size - player.size());
+                player.pos = player.pos.clamp(
+                    Vec2::from([player.radius; 2]),
+                    map_size - Vec2::from([player.radius; 2]),
+                );
             }
 
             // Collect items and exit if no items remain
@@ -152,7 +133,6 @@ async fn main() -> Result<(), Error> {
                 items.retain(|item| {
                     (player.pos - item.pos).length() > (player.radius + item.radius)
                 });
-                counter = num_items - items.len();
 
                 if items.is_empty() {
                     if timeout.is_zero() {
@@ -161,6 +141,33 @@ async fn main() -> Result<(), Error> {
                         timeout = timeout.saturating_sub(dt);
                     }
                 }
+            }
+
+            // Draw frame
+            {
+                clear_background(color::BLACK);
+
+                draw_rectangle_lines(
+                    0.0,
+                    0.0,
+                    scale * map_size.x,
+                    scale * map_size.y,
+                    2.0,
+                    color::GRAY,
+                );
+
+                for item in &items {
+                    item.draw(scale);
+                }
+                player.draw(scale);
+
+                draw_text(
+                    &format!("{}", num_items - items.len()),
+                    4.0,
+                    scale * 1.2 + 4.0,
+                    scale * 2.0,
+                    color::WHITE,
+                );
             }
 
             next_frame().await;
