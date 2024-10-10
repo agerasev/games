@@ -50,7 +50,7 @@ impl Iterator for GridSizeIter {
     }
 }
 
-pub fn grid(size: (f32, f32), n: usize) -> Vec<Rect> {
+pub fn grid(size: (f32, f32), n: usize) -> Vec<Vec<Rect>> {
     let (w, h) = size;
     let mut iter = GridSizeIter::new(w, h);
     let ((nx, ny), (sx, sy)) = loop {
@@ -60,11 +60,15 @@ pub fn grid(size: (f32, f32), n: usize) -> Vec<Rect> {
             break item;
         }
     };
-    let mut boxes = Vec::with_capacity(n);
+    let mut count = 0;
+    let mut boxes = Vec::new();
     'outer: for iy in 0..ny {
+        boxes.push(Vec::new());
+        let line = boxes.last_mut().unwrap();
         for ix in 0..nx {
-            boxes.push(Rect::new(sx * ix as f32, sy * iy as f32, sx, sy));
-            if boxes.len() >= n {
+            line.push(Rect::new(sx * ix as f32, sy * iy as f32, sx, sy));
+            count += 1;
+            if count >= n {
                 break 'outer;
             }
         }

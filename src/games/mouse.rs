@@ -1,4 +1,7 @@
-use crate::Game;
+use crate::{
+    text::{Text, TextAlign},
+    Game,
+};
 use derive_more::derive::{Deref, DerefMut};
 use futures::{future::try_join_all, TryFutureExt};
 use macroquad::{
@@ -7,7 +10,7 @@ use macroquad::{
     math::{Rect, Vec2},
     miniquad::window::screen_size,
     shapes::draw_rectangle_lines,
-    text::draw_text,
+    text::load_ttf_font,
     texture::{
         draw_texture_ex, load_texture, set_default_filter_mode, DrawTextureParams, FilterMode,
         Texture2D,
@@ -62,11 +65,12 @@ pub async fn main() -> Result<(), Error> {
             .map(|(path, prob)| load_texture(path).map_ok(move |t| (t, prob))),
     )
     .await?;
+    let font = load_ttf_font("assets/default.ttf").await?;
 
     let mut rng = SmallRng::from_entropy();
 
     loop {
-        let map_size = Vec2::from([42.0, 24.0]);
+        let map_size = Vec2::from([40.0, 30.0]);
         let num_items = 16;
 
         let mut player = Player {
@@ -164,13 +168,12 @@ pub async fn main() -> Result<(), Error> {
                 }
                 player.draw(scale);
 
-                draw_text(
-                    &format!("{}", num_items - items.len()),
-                    4.0,
-                    scale * 1.2 + 4.0,
-                    scale * 2.0,
-                    color::WHITE,
-                );
+                Text {
+                    text: format!("{}", num_items - items.len()),
+                    font: Some(&font),
+                    size: scale * 2.0,
+                }
+                .draw(6.0, scale * 1.8, TextAlign::Left, color::WHITE);
             }
 
             next_frame().await;

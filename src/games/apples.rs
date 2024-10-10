@@ -1,10 +1,13 @@
-use crate::Game;
+use crate::{
+    text::{Text, TextAlign},
+    Game,
+};
 use macroquad::{
     color,
     input::{get_keys_pressed, is_key_down, KeyCode},
     math::{Rect, Vec2},
     miniquad::window::screen_size,
-    text::draw_text,
+    text::load_ttf_font,
     texture::{
         draw_texture_ex, load_texture, set_default_filter_mode, DrawTextureParams, FilterMode,
         Texture2D,
@@ -21,11 +24,14 @@ pub async fn main() -> Result<(), Error> {
     let item_size = item_texture.size() * 4.0;
     let padding = 10.0;
 
+    let font = load_ttf_font("assets/default.ttf").await?;
+
     let mut rng = SmallRng::from_entropy();
     let mut number: i64 = rng.sample(Uniform::new_inclusive(1, 10));
 
     while !is_key_down(KeyCode::Escape) {
         let viewport = Vec2::from(screen_size());
+        let scale = viewport.y / 800.0;
 
         {
             const NUM_KEYS: [[KeyCode; 2]; 10] = [
@@ -55,28 +61,58 @@ pub async fn main() -> Result<(), Error> {
         }
 
         clear_background(color::BLACK);
-        let width = padding * (number + number / 5) as f32 + item_size.x * number as f32;
-        for i in 0..number {
-            draw_texture_ex(
-                &item_texture,
-                viewport.x / 2.0 - width / 2.0
-                    + padding * (i + 2 * (i / 5)) as f32
-                    + item_size.x * i as f32,
-                viewport.y / 4.0 - item_size.y / 2.0,
-                color::WHITE,
-                DrawTextureParams {
-                    dest_size: Some(item_size),
-                    ..Default::default()
-                },
-            );
+        {
+            let width = padding * (number + 2 * (number / 5)) as f32 + item_size.x * number as f32;
+            for i in 0..number {
+                draw_texture_ex(
+                    &item_texture,
+                    viewport.x / 2.0
+                        + scale
+                            * (-width / 2.0
+                                + padding * (i + 2 * (i / 5)) as f32
+                                + item_size.x * i as f32),
+                    viewport.y / 4.0 - scale * item_size.y / 2.0,
+                    color::WHITE,
+                    DrawTextureParams {
+                        dest_size: Some(item_size * scale),
+                        ..Default::default()
+                    },
+                );
+            }
         }
 
-        draw_text("=", viewport.x / 2.0, viewport.y / 2.0, 160.0, color::WHITE);
-        draw_text(
-            &format!("{number}"),
+        Text {
+            text: "=".to_owned(),
+            font: Some(&font),
+            size: 100.0 * scale,
+        }
+        .draw(
+            viewport.x / 2.0,
+            viewport.y / 2.0,
+            TextAlign::Center,
+            color::WHITE,
+        );
+        Text {
+            text: format!("{number}"),
+            font: Some(&font),
+            size: 100.0 * scale,
+        }
+        .draw(
             viewport.x / 2.0,
             viewport.y * 3.0 / 4.0,
-            160.0,
+            TextAlign::Center,
+            color::WHITE,
+        );
+
+        Text {
+            text: items_name(number),
+            font: Some(&font),
+            size: 50.0 * scale,
+        }
+        .draw(
+            viewport.x / 2.0,
+            viewport.y * 7.0 / 8.0,
+            TextAlign::Center,
             color::WHITE,
         );
 
@@ -84,6 +120,23 @@ pub async fn main() -> Result<(), Error> {
     }
 
     Ok(())
+}
+
+fn items_name(n: i64) -> String {
+    let n = n.abs();
+    format!(
+        "яблок{}",
+        if (n % 100) / 10 != 1 {
+            match n % 10 {
+                0 | 5..=9 => "",
+                1 => "о",
+                2..=4 => "а",
+                _ => unreachable!(),
+            }
+        } else {
+            ""
+        }
+    )
 }
 
 pub struct ApplesGame {

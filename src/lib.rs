@@ -1,5 +1,6 @@
 pub mod games;
 pub mod layout;
+pub mod text;
 
 use macroquad::{math::Rect, Error};
 use std::{future::Future, pin::Pin};
