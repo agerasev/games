@@ -8,6 +8,7 @@ use macroquad::{
     window::{clear_background, next_frame},
     Error,
 };
+use std::env;
 use yarik::{
     games, layout,
     text::{Text, TextAlign},
@@ -18,6 +19,18 @@ async fn main() -> Result<(), Error> {
     let games = games::all().await?;
     let font = load_ttf_font("assets/default.ttf").await?;
 
+    if let Some(name) = env::args().nth(1) {
+        games
+            .get(&name)
+            .unwrap_or_else(|| {
+                panic!(
+                    "Game not found: \"{name}\"\nAvailable games: {:?}",
+                    games.keys()
+                )
+            })
+            .launch()
+            .await?;
+    }
     loop {
         let boxes = layout::grid(screen_size(), games.len());
         clear_background(color::BLACK);
@@ -31,11 +44,7 @@ async fn main() -> Result<(), Error> {
                     size,
                 )
             });
-            let text = Text {
-                text: name.to_owned(),
-                font: Some(&font),
-                size: rect.size().min_element() / 10.0,
-            };
+            let text = Text::new(name, rect.size().min_element() / 10.0, Some(&font));
             text.draw(
                 rect.center().x,
                 rect.bottom() - text.size / 2.0,

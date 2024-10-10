@@ -81,35 +81,20 @@ pub async fn main() -> Result<(), Error> {
             }
         }
 
-        Text {
-            text: "=".to_owned(),
-            font: Some(&font),
-            size: 100.0 * scale,
-        }
-        .draw(
+        Text::new("=", 100.0 * scale, Some(&font)).draw(
             viewport.x / 2.0,
             viewport.y / 2.0,
             TextAlign::Center,
             color::WHITE,
         );
-        Text {
-            text: format!("{number}"),
-            font: Some(&font),
-            size: 100.0 * scale,
-        }
-        .draw(
+        Text::new(format!("{number}"), 100.0 * scale, Some(&font)).draw(
             viewport.x / 2.0,
             viewport.y * 3.0 / 4.0,
             TextAlign::Center,
             color::WHITE,
         );
 
-        Text {
-            text: items_name(number),
-            font: Some(&font),
-            size: 50.0 * scale,
-        }
-        .draw(
+        Text::new(items_name(number), 50.0 * scale, Some(&font)).draw(
             viewport.x / 2.0,
             viewport.y * 7.0 / 8.0,
             TextAlign::Center,
@@ -153,6 +138,10 @@ impl ApplesGame {
 }
 
 impl Game for ApplesGame {
+    fn name(&self) -> String {
+        "Считаем яблоки".to_owned()
+    }
+
     fn draw_preview(&self, rect: Rect) {
         draw_texture_ex(
             &self.apple,

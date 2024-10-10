@@ -2,6 +2,7 @@ use crate::{
     text::{Text, TextAlign},
     Game,
 };
+use core::f32;
 use derive_more::derive::{Deref, DerefMut};
 use futures::{future::try_join_all, TryFutureExt};
 use macroquad::{
@@ -9,13 +10,13 @@ use macroquad::{
     input::{is_key_down, KeyCode},
     math::{Rect, Vec2},
     miniquad::window::screen_size,
-    shapes::draw_rectangle_lines,
+    shapes::draw_rectangle,
     text::load_ttf_font,
     texture::{
         draw_texture_ex, load_texture, set_default_filter_mode, DrawTextureParams, FilterMode,
         Texture2D,
     },
-    time::get_frame_time,
+    time::{get_frame_time, get_time},
     window::{clear_background, next_frame},
     Error,
 };
@@ -24,7 +25,7 @@ use rand::{
     rngs::SmallRng,
     Rng, SeedableRng,
 };
-use std::{future::Future, pin::Pin, time::Duration};
+use std::{f32::consts::PI, future::Future, pin::Pin, time::Duration};
 
 #[derive(Clone, Debug)]
 pub struct Item {
@@ -34,11 +35,11 @@ pub struct Item {
 }
 
 impl Item {
-    pub fn draw(&self, scale: f32) {
+    pub fn draw(&self, scale: f32, offset: Vec2) {
         draw_texture_ex(
             &self.image,
-            (self.pos.x - self.radius) * scale,
-            (self.pos.y - self.radius) * scale,
+            (self.pos.x + offset.x - self.radius) * scale,
+            (self.pos.y + offset.y - self.radius) * scale,
             color::WHITE,
             DrawTextureParams {
                 dest_size: Some(scale * 2.0 * Vec2::new(self.radius, self.radius)),
@@ -108,7 +109,9 @@ pub async fn main() -> Result<(), Error> {
                 return Ok(());
             }
 
-            let scale = (Vec2::from(screen_size()) / map_size).min_element();
+            let viewport = Vec2::from(screen_size());
+            let scale = (viewport / map_size).min_element();
+            let map_offset = (viewport / scale - map_size) / 2.0;
             let dt = Duration::from_secs_f32(get_frame_time());
 
             // Move player
@@ -154,26 +157,48 @@ pub async fn main() -> Result<(), Error> {
             {
                 clear_background(color::BLACK);
 
-                draw_rectangle_lines(
-                    0.0,
-                    0.0,
+                draw_rectangle(
+                    scale * map_offset.x,
+                    scale * map_offset.y,
                     scale * map_size.x,
                     scale * map_size.y,
-                    2.0,
-                    color::GRAY,
+                    color::DARKGRAY,
                 );
 
                 for item in &items {
-                    item.draw(scale);
+                    item.draw(
+                        scale,
+                        map_offset + Vec2::new(0.0, 0.1 * (PI * get_time() as f32).sin()),
+                    );
                 }
-                player.draw(scale);
+                player.draw(scale, map_offset);
 
-                Text {
-                    text: format!("{}", num_items - items.len()),
-                    font: Some(&font),
-                    size: scale * 2.0,
-                }
-                .draw(6.0, scale * 1.8, TextAlign::Left, color::WHITE);
+                let text_offset = 6.0;
+                Text::new("Собрано", scale * 0.8, Some(&font)).draw(
+                    text_offset,
+                    scale * 0.8,
+                    TextAlign::Left,
+                    color::WHITE,
+                );
+                Text::new(
+                    format!("{}", num_items - items.len()),
+                    scale * 2.0,
+                    Some(&font),
+                )
+                .draw(text_offset, scale * 2.6, TextAlign::Left, color::WHITE);
+
+                Text::new("Осталось", scale * 0.8, Some(&font)).draw(
+                    viewport.x - text_offset,
+                    scale * 0.8,
+                    TextAlign::Right,
+                    color::WHITE,
+                );
+                Text::new(format!("{}", items.len()), scale * 2.0, Some(&font)).draw(
+                    viewport.x - text_offset,
+                    scale * 2.6,
+                    TextAlign::Right,
+                    color::WHITE,
+                );
             }
 
             next_frame().await;
@@ -197,6 +222,10 @@ impl MouseGame {
 }
 
 impl Game for MouseGame {
+    fn name(&self) -> String {
+        "Мышь и сыр".to_owned()
+    }
+
     fn draw_preview(&self, rect: Rect) {
         draw_texture_ex(
             &self.mouse,
