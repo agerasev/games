@@ -1,3 +1,4 @@
+pub mod animation;
 pub mod games;
 pub mod layout;
 pub mod text;

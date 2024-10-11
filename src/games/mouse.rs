@@ -1,7 +1,4 @@
-use crate::{
-    text::{Text, TextAlign},
-    Game,
-};
+use crate::text::{Text, TextAlign};
 use core::f32;
 use derive_more::derive::{Deref, DerefMut};
 use futures::{future::try_join_all, TryFutureExt};
@@ -206,12 +203,12 @@ pub async fn main() -> Result<(), Error> {
     }
 }
 
-pub struct MouseGame {
+pub struct Game {
     mouse: Texture2D,
     cheese: Texture2D,
 }
 
-impl MouseGame {
+impl Game {
     pub async fn new() -> Result<Self, Error> {
         set_default_filter_mode(FilterMode::Nearest);
         Ok(Self {
@@ -221,7 +218,7 @@ impl MouseGame {
     }
 }
 
-impl Game for MouseGame {
+impl crate::Game for Game {
     fn name(&self) -> String {
         "Мышь и сыр".to_owned()
     }

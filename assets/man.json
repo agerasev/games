@@ -1,0 +1,40 @@
+{
+    "head-torso-front": {
+        "size": [60, 120],
+        "positions": [[0, 0]]
+    },
+    "head-torso-back": {
+        "size": [60, 120],
+        "positions": [[0, 120]]
+    },
+    "head-torso-side": {
+        "size": [60, 120],
+        "positions": [[0, 240]]
+    },
+
+    "hands-legs-front-stand": {
+        "size": [60, 120],
+        "positions": [[60, 0]]
+    },
+    "hands-legs-back-stand": {
+        "size": [60, 120],
+        "positions": [[60, 120]]
+    },
+    "hands-legs-side-stand": {
+        "size": [60, 120],
+        "positions": [[60, 240]]
+    },
+
+    "hands-legs-front-run": {
+        "size": [60, 120],
+        "positions": [[120, 0], [180, 0], [240, 0], [300, 0], [360, 0], [420, 0], [480, 0], [540, 0]]
+    },
+    "hands-legs-back-run": {
+        "size": [60, 120],
+        "positions": [[120, 120], [180, 120], [240, 120], [300, 120], [360, 120], [420, 120], [480, 120], [540, 120]]
+    },
+    "hands-legs-side-run": {
+        "size": [60, 120],
+        "positions": [[120, 240], [180, 240], [240, 240], [300, 240], [360, 240], [420, 240], [480, 240], [540, 240]]
+    }
+}

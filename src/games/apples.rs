@@ -1,7 +1,4 @@
-use crate::{
-    text::{Text, TextAlign},
-    Game,
-};
+use crate::text::{Text, TextAlign};
 use macroquad::{
     color,
     input::{get_keys_pressed, is_key_down, KeyCode},
@@ -124,11 +121,11 @@ fn items_name(n: i64) -> String {
     )
 }
 
-pub struct ApplesGame {
+pub struct Game {
     apple: Texture2D,
 }
 
-impl ApplesGame {
+impl Game {
     pub async fn new() -> Result<Self, Error> {
         set_default_filter_mode(FilterMode::Nearest);
         Ok(Self {
@@ -137,7 +134,7 @@ impl ApplesGame {
     }
 }
 
-impl Game for ApplesGame {
+impl crate::Game for Game {
     fn name(&self) -> String {
         "Считаем яблоки".to_owned()
     }
