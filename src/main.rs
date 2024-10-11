@@ -2,7 +2,7 @@ use macroquad::{
     color,
     input::{is_mouse_button_pressed, mouse_position, MouseButton},
     math::{Rect, Vec2},
-    miniquad::window::screen_size,
+    miniquad::window::{screen_size, set_window_size},
     shapes::draw_rectangle_lines,
     text::load_ttf_font,
     window::{clear_background, next_frame},
@@ -19,22 +19,24 @@ async fn main() -> Result<(), Error> {
     let games = games::all().await?;
     let font = load_ttf_font("assets/default.ttf").await?;
 
+    set_window_size(1280, 720);
+
     if let Some(name) = env::args().nth(1) {
-        games
-            .get(&name)
-            .unwrap_or_else(|| {
-                panic!(
-                    "Game not found: \"{name}\"\nAvailable games: {:?}",
-                    games.keys()
-                )
-            })
-            .launch()
-            .await?;
+        match games
+            .iter()
+            .find_map(|(k, v)| if k == &name { Some(v) } else { None })
+        {
+            Some(game) => game.launch().await?,
+            None => panic!(
+                "Game not found: \"{name}\"\nAvailable games: {:?}",
+                games.iter().map(|(k, _)| k).collect::<Vec<_>>()
+            ),
+        }
     }
     loop {
         let boxes = layout::grid(screen_size(), games.len());
         clear_background(color::BLACK);
-        for ((name, game), rect) in games.iter().zip(boxes.iter().flatten()) {
+        for ((_, game), rect) in games.iter().zip(boxes.iter().flatten()) {
             game.draw_preview({
                 let size = rect.size().min_element() / 2.0;
                 Rect::new(
@@ -44,7 +46,7 @@ async fn main() -> Result<(), Error> {
                     size,
                 )
             });
-            let text = Text::new(name, rect.size().min_element() / 10.0, Some(&font));
+            let text = Text::new(game.name(), rect.size().min_element() / 10.0, Some(&font));
             text.draw(
                 rect.center().x,
                 rect.bottom() - text.size / 2.0,
