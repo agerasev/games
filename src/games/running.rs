@@ -1,4 +1,5 @@
 use crate::animation::{Animation, AnimationInfo};
+use anyhow::{anyhow, Error};
 use macroquad::{
     color,
     file::load_file,
@@ -7,23 +8,48 @@ use macroquad::{
     texture::{load_texture, set_default_filter_mode, FilterMode, Texture2D},
     time::get_frame_time,
     window::{clear_background, next_frame},
-    Error,
 };
 use serde::Deserialize;
-use std::{future::Future, pin::Pin, time::Duration};
+use std::{collections::HashMap, future::Future, pin::Pin, time::Duration};
+
+#[repr(usize)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+enum Orientation {
+    Front = 0,
+    Back = 1,
+    Side = 2,
+}
 
 #[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "kebab-case")]
 struct PersonAnimations {
-    head_torso_front: AnimationInfo,
-    head_torso_back: AnimationInfo,
-    head_torso_side: AnimationInfo,
-    hands_legs_front_stand: AnimationInfo,
-    hands_legs_back_stand: AnimationInfo,
-    hands_legs_side_stand: AnimationInfo,
-    hands_legs_front_run: AnimationInfo,
-    hands_legs_back_run: AnimationInfo,
-    hands_legs_side_run: AnimationInfo,
+    head_torso: [AnimationInfo; 3],
+    hands_legs_stand: [AnimationInfo; 3],
+    hands_legs_run: [AnimationInfo; 3],
+}
+
+impl PersonAnimations {
+    async fn load(path: &str) -> Result<Self, Error> {
+        let mut container: HashMap<String, AnimationInfo> =
+            serde_json::from_slice(&load_file(path).await?)?;
+
+        let mut extract_group = |name: &str| -> Result<[AnimationInfo; 3], Error> {
+            Ok(["front", "back", "side"]
+                .into_iter()
+                .map(|orientation| {
+                    let key = name.replace("{}", orientation);
+                    container.remove(&key).ok_or(anyhow!("No such key: {key}"))
+                })
+                .collect::<Result<Vec<_>, _>>()?
+                .try_into()
+                .unwrap())
+        };
+
+        Ok(Self {
+            head_torso: extract_group("head-torso-{}")?,
+            hands_legs_stand: extract_group("hands-legs-{}-stand")?,
+            hands_legs_run: extract_group("hands-legs-{}-run")?,
+        })
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -36,24 +62,9 @@ impl Personality {
     async fn new(texture_path: &str, animations_path: &str) -> Result<Self, Error> {
         Ok(Self {
             texture: load_texture(texture_path).await?,
-            animations: serde_json::from_slice(&load_file(animations_path).await?).map_err(
-                |e| {
-                    // FIXME: Use Anyhow
-                    let msg = "JSON parse error";
-                    eprintln!("{msg}: {e}");
-                    msg
-                },
-            )?,
+            animations: PersonAnimations::load(animations_path).await?,
         })
     }
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-enum Orientation {
-    Front,
-    Back,
-    Left,
-    Right,
 }
 
 #[derive(Clone, Debug)]
@@ -81,30 +92,17 @@ impl<'a> Character<'a> {
     fn draw(&self, scale: f32) {
         use Orientation::*;
 
-        let orientation = match (self.direction.x, self.direction.y) {
-            (_, 0.5..) => Front,
-            (_, ..-0.5) => Back,
-            (..0.0, _) => Left,
-            _ => Right,
+        let orientation = match self.direction.y {
+            ..-0.5 => Back,
+            0.5.. => Front,
+            _ => Side,
         };
-        let flip_x = orientation == Left;
-        let head_torso = match orientation {
-            Front => &self.look.animations.head_torso_front,
-            Back => &self.look.animations.head_torso_back,
-            Left | Right => &self.look.animations.head_torso_side,
-        };
+        let flip_x = self.direction.x < 0.0;
+        let head_torso = &self.look.animations.head_torso[orientation as usize];
         let hands_legs = if self.velocity == Vec2::ZERO {
-            match orientation {
-                Front => &self.look.animations.hands_legs_front_stand,
-                Back => &self.look.animations.hands_legs_back_stand,
-                Left | Right => &self.look.animations.hands_legs_side_stand,
-            }
+            &self.look.animations.hands_legs_stand[orientation as usize]
         } else {
-            match orientation {
-                Front => &self.look.animations.hands_legs_front_run,
-                Back => &self.look.animations.hands_legs_back_run,
-                Left | Right => &self.look.animations.hands_legs_side_run,
-            }
+            &self.look.animations.hands_legs_run[orientation as usize]
         };
 
         let animation_period = Duration::from_secs_f32(1.0);

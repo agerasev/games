@@ -1,3 +1,4 @@
+use anyhow::Error;
 use macroquad::{
     color,
     input::{is_mouse_button_pressed, mouse_position, MouseButton},
@@ -6,7 +7,6 @@ use macroquad::{
     shapes::draw_rectangle_lines,
     text::load_ttf_font,
     window::{clear_background, next_frame},
-    Error,
 };
 use std::env;
 use yarik::{

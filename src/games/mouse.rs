@@ -1,4 +1,5 @@
 use crate::text::{Text, TextAlign};
+use anyhow::Error;
 use core::f32;
 use derive_more::derive::{Deref, DerefMut};
 use futures::{future::try_join_all, TryFutureExt};
@@ -15,7 +16,6 @@ use macroquad::{
     },
     time::{get_frame_time, get_time},
     window::{clear_background, next_frame},
-    Error,
 };
 use rand::{
     distributions::{Uniform, WeightedIndex},
@@ -71,9 +71,7 @@ pub async fn main() -> Result<(), Error> {
     loop {
         let map_size = Vec2::from([40.0, 30.0]);
         let mean_items: f32 = 16.0;
-        let num_items = rng
-            .sample(Poisson::new(mean_items).map_err(|_| "Poisson error")?)
-            .round() as usize;
+        let num_items = rng.sample(Poisson::new(mean_items)?).round() as usize;
 
         let mut player = Player {
             base: Item {

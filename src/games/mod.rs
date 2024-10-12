@@ -1,5 +1,5 @@
 use crate::Game;
-use macroquad::Error;
+use anyhow::Error;
 
 pub mod apples;
 pub mod mouse;

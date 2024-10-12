@@ -1,4 +1,5 @@
 use crate::text::{Text, TextAlign};
+use anyhow::Error;
 use macroquad::{
     color,
     input::{get_keys_pressed, is_key_down, KeyCode},
@@ -10,7 +11,6 @@ use macroquad::{
         Texture2D,
     },
     window::{clear_background, next_frame},
-    Error,
 };
 use rand::{distributions::Uniform, rngs::SmallRng, Rng, SeedableRng};
 use std::{future::Future, pin::Pin};

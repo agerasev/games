@@ -3,7 +3,8 @@ pub mod games;
 pub mod layout;
 pub mod text;
 
-use macroquad::{math::Rect, Error};
+use anyhow::Error;
+use macroquad::math::Rect;
 use std::{future::Future, pin::Pin};
 
 pub trait Game {
