@@ -22,6 +22,7 @@ use rand::{
     rngs::SmallRng,
     Rng, SeedableRng,
 };
+use rand_distr::Poisson;
 use std::{f32::consts::PI, future::Future, pin::Pin, time::Duration};
 
 #[derive(Clone, Debug)]
@@ -69,13 +70,16 @@ pub async fn main() -> Result<(), Error> {
 
     loop {
         let map_size = Vec2::from([40.0, 30.0]);
-        let num_items = 16;
+        let mean_items: f32 = 16.0;
+        let num_items = rng
+            .sample(Poisson::new(mean_items).map_err(|_| "Poisson error")?)
+            .round() as usize;
 
         let mut player = Player {
             base: Item {
                 pos: map_size / 2.0,
                 image: player_image.clone(),
-                radius: 1.0,
+                radius: 0.75,
             },
             speed: 10.0,
         };
@@ -138,7 +142,12 @@ pub async fn main() -> Result<(), Error> {
             // Collect items and exit if no items remain
             {
                 items.retain(|item| {
-                    (player.pos - item.pos).length() > (player.radius + item.radius)
+                    if (player.pos - item.pos).length() > (player.radius + item.radius) {
+                        true
+                    } else {
+                        player.radius += 1.0 / (mean_items * (2.0 * player.radius).sqrt());
+                        false
+                    }
                 });
 
                 if items.is_empty() {
