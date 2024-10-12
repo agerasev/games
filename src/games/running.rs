@@ -5,12 +5,20 @@ use macroquad::{
     file::load_file,
     input::{is_key_down, KeyCode},
     math::{Rect, Vec2},
+    miniquad::window::screen_size,
     texture::{load_texture, set_default_filter_mode, FilterMode, Texture2D},
     time::get_frame_time,
     window::{clear_background, next_frame},
 };
 use serde::Deserialize;
 use std::{collections::HashMap, future::Future, pin::Pin, time::Duration};
+
+const TILT: f32 = 0.6667;
+
+trait Object {
+    fn pos(&self) -> Vec2;
+    fn draw(&self, scale: f32, offset: Vec2);
+}
 
 #[repr(usize)]
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -77,6 +85,11 @@ struct Character<'a> {
 }
 
 impl<'a> Character<'a> {
+    const SHAPE: Vec2 = Vec2::new(1.0, 2.0);
+    const CENTER: Vec2 = Vec2::new(0.5, 1.8);
+    const SPEED: f32 = 2.7778;
+    const ANIMATION_PERIOD: Duration = Duration::from_millis(800);
+
     fn new(look: &'a Personality, pos: Vec2, dir: Vec2) -> Self {
         Self {
             look,
@@ -86,16 +99,30 @@ impl<'a> Character<'a> {
             action_duration: Duration::ZERO,
         }
     }
-    fn step(&mut self, dt: Duration) {
+
+    fn step(&mut self, mut motion: Vec2, dt: Duration) {
+        motion = motion.normalize_or_zero();
+        if motion != Vec2::ZERO {
+            self.direction = motion;
+        }
+        let speed: f32 = Self::SPEED;
+        self.velocity = motion * speed;
+        self.position += self.velocity * dt.as_secs_f32();
         self.action_duration += dt;
     }
-    fn draw(&self, scale: f32) {
-        use Orientation::*;
+}
 
-        let orientation = match self.direction.y {
-            ..-0.5 => Back,
-            0.5.. => Front,
-            _ => Side,
+impl<'a> Object for Character<'a> {
+    fn pos(&self) -> Vec2 {
+        self.position
+    }
+    fn draw(&self, scale: f32, offset: Vec2) {
+        let orientation = if !(-TILT..=TILT).contains(&self.direction.x) {
+            Orientation::Side
+        } else if self.direction.y > 0.0 {
+            Orientation::Front
+        } else {
+            Orientation::Back
         };
         let flip_x = self.direction.x < 0.0;
         let head_torso = &self.look.animations.head_torso[orientation as usize];
@@ -105,12 +132,21 @@ impl<'a> Character<'a> {
             &self.look.animations.hands_legs_run[orientation as usize]
         };
 
-        let animation_period = Duration::from_secs_f32(1.0);
-        let head_torso = Animation::new(&self.look.texture, head_torso, animation_period, flip_x);
-        let hands_legs = Animation::new(&self.look.texture, hands_legs, animation_period, flip_x);
+        let head_torso = Animation::new(
+            &self.look.texture,
+            head_torso,
+            Self::ANIMATION_PERIOD,
+            flip_x,
+        );
+        let hands_legs = Animation::new(
+            &self.look.texture,
+            hands_legs,
+            Self::ANIMATION_PERIOD,
+            flip_x,
+        );
 
-        let pos = scale * self.position;
-        let size = scale * Vec2::new(1.0, 2.0);
+        let size = scale * Self::SHAPE;
+        let pos = scale * self.position * Vec2::new(1.0, TILT) + offset - Self::CENTER;
         head_torso.draw(pos, size, self.action_duration);
         hands_legs.draw(pos, size, self.action_duration);
     }
@@ -120,28 +156,38 @@ pub async fn main() -> Result<(), Error> {
     set_default_filter_mode(FilterMode::Nearest);
     let man = Personality::new("assets/man.png", "assets/man.json").await?;
 
-    let mut men = [
-        Character::new(&man, Vec2::new(0.0, 0.0), Vec2::new(0.0, 1.0)),
-        Character::new(&man, Vec2::new(2.0, 0.0), Vec2::new(0.0, -1.0)),
-        Character::new(&man, Vec2::new(4.0, 0.0), Vec2::new(-1.0, 0.0)),
-        Character::new(&man, Vec2::new(6.0, 0.0), Vec2::new(1.0, 0.0)),
-        Character::new(&man, Vec2::new(0.0, 2.0), Vec2::new(0.0, 1.0)),
-        Character::new(&man, Vec2::new(2.0, 2.0), Vec2::new(0.0, -1.0)),
-        Character::new(&man, Vec2::new(4.0, 2.0), Vec2::new(-1.0, 0.0)),
-        Character::new(&man, Vec2::new(6.0, 2.0), Vec2::new(1.0, 0.0)),
-    ];
-    for m in &mut men[4..] {
-        m.velocity = Vec2::new(0.0, 1.0);
-    }
+    let mut player = Character::new(&man, Vec2::new(0.0, 0.0), Vec2::new(0.0, 1.0));
 
     while !is_key_down(KeyCode::Escape) {
-        let scale = 160.0;
+        let dt = Duration::from_secs_f32(get_frame_time());
 
-        clear_background(color::BLACK);
+        // Move
+        {
+            let mut motion = Vec2::ZERO;
+            if is_key_down(KeyCode::Up) || is_key_down(KeyCode::W) {
+                motion += Vec2::from([0.0, -1.0]);
+            }
+            if is_key_down(KeyCode::Down) || is_key_down(KeyCode::S) {
+                motion += Vec2::from([0.0, 1.0]);
+            }
+            if is_key_down(KeyCode::Left) || is_key_down(KeyCode::A) {
+                motion += Vec2::from([-1.0, 0.0]);
+            }
+            if is_key_down(KeyCode::Right) || is_key_down(KeyCode::D) {
+                motion += Vec2::from([1.0, 0.0]);
+            }
 
-        for m in &mut men {
-            m.draw(scale);
-            m.step(Duration::from_secs_f32(get_frame_time()));
+            player.step(motion, dt);
+        }
+
+        // Draw
+        {
+            let scale = 120.0;
+            let offset = Vec2::from(screen_size()) / 2.0;
+
+            clear_background(color::DARKGREEN);
+
+            player.draw(scale, offset);
         }
 
         next_frame().await
