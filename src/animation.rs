@@ -29,24 +29,27 @@ pub struct Animation<'a> {
     texture: &'a Texture2D,
     info: &'a AnimationInfo,
     period: Duration,
-    flip_x: bool,
+    flip: (bool, bool),
 }
 
 impl<'a> Animation<'a> {
-    pub fn new(
-        texture: &'a Texture2D,
-        info: &'a AnimationInfo,
-        period: Duration,
-        flip_x: bool,
-    ) -> Self {
+    pub fn new(texture: &'a Texture2D, info: &'a AnimationInfo, period: Duration) -> Self {
         assert_ne!(info.len(), 0);
         Self {
             texture,
             info,
             period,
-            flip_x,
+            flip: (false, false),
         }
     }
+
+    pub fn flip(self, x: bool, y: bool) -> Self {
+        Self {
+            flip: (x, y),
+            ..self
+        }
+    }
+
     pub fn draw(&self, pos: Vec2, size: Vec2, time: Duration) {
         let index = (time.div_duration_f64(self.period).fract() * self.info.len() as f64) as usize;
         let tex_pos = self.info.position(index);
@@ -59,7 +62,8 @@ impl<'a> Animation<'a> {
             DrawTextureParams {
                 dest_size: Some(size),
                 source: Some(Rect::new(tex_pos.x, tex_pos.y, tex_size.x, tex_size.y)),
-                flip_x: self.flip_x,
+                flip_x: self.flip.0,
+                flip_y: self.flip.1,
                 ..Default::default()
             },
         );
