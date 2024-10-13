@@ -1,23 +1,82 @@
+use super::TILT;
 use crate::animation::{Animation, AnimationInfo};
 use anyhow::{anyhow, Error};
 use macroquad::{
-    color,
     file::load_file,
-    input::{is_key_down, KeyCode},
-    math::{Rect, Vec2},
-    miniquad::window::screen_size,
-    texture::{load_texture, set_default_filter_mode, FilterMode, Texture2D},
-    time::get_frame_time,
-    window::{clear_background, next_frame},
+    math::Vec2,
+    texture::{load_texture, Texture2D},
 };
 use serde::Deserialize;
-use std::{collections::HashMap, future::Future, pin::Pin, time::Duration};
+use std::{cell::RefCell, collections::HashMap, time::Duration};
 
-const TILT: f32 = 0.6667;
-
-trait Object {
+pub trait Object {
     fn pos(&self) -> Vec2;
     fn draw(&self, scale: f32, offset: Vec2);
+}
+
+impl<T: Object> Object for RefCell<T> {
+    fn pos(&self) -> Vec2 {
+        self.borrow().pos()
+    }
+    fn draw(&self, scale: f32, offset: Vec2) {
+        self.borrow().draw(scale, offset);
+    }
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct TreeAnimation {
+    trunk: AnimationInfo,
+    leaves: AnimationInfo,
+}
+
+#[derive(Clone, Debug)]
+pub struct TreeSpecies {
+    texture: Texture2D,
+    animation: TreeAnimation,
+}
+
+impl TreeSpecies {
+    pub async fn load(texture_path: &str, animation_path: &str) -> Result<Self, Error> {
+        Ok(Self {
+            texture: load_texture(texture_path).await?,
+            animation: serde_json::from_slice(&load_file(animation_path).await?)?,
+        })
+    }
+}
+
+pub struct Tree<'a> {
+    pub species: &'a TreeSpecies,
+    pub pos: Vec2,
+    pub growth: f32,
+}
+
+impl<'a> Tree<'a> {
+    const ANIMATION_PERIOD: Duration = Duration::from_secs(5);
+    const SHAPE: Vec2 = Vec2::new(1.0, 2.0);
+    const CENTER: Vec2 = Vec2::new(0.5, 1.9);
+}
+
+impl<'a> Object for Tree<'a> {
+    fn pos(&self) -> Vec2 {
+        self.pos
+    }
+    fn draw(&self, scale: f32, offset: Vec2) {
+        let trunk = Animation::new(
+            &self.species.texture,
+            &self.species.animation.trunk,
+            Self::ANIMATION_PERIOD,
+        );
+        let leaves = Animation::new(
+            &self.species.texture,
+            &self.species.animation.leaves,
+            Self::ANIMATION_PERIOD,
+        );
+
+        let size = scale * self.growth * Self::SHAPE;
+        let pos = scale * (self.pos - self.growth * Self::CENTER) * Vec2::new(1.0, TILT) + offset;
+        trunk.draw(pos, size, Duration::ZERO);
+        leaves.draw(pos, size, Duration::ZERO);
+    }
 }
 
 #[repr(usize)]
@@ -28,7 +87,7 @@ enum Orientation {
     Side = 2,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug)]
 struct PersonAnimations {
     head_torso: [AnimationInfo; 3],
     hands_legs_stand: [AnimationInfo; 3],
@@ -61,13 +120,13 @@ impl PersonAnimations {
 }
 
 #[derive(Clone, Debug)]
-struct Personality {
+pub struct Personality {
     texture: Texture2D,
     animations: PersonAnimations,
 }
 
 impl Personality {
-    async fn new(texture_path: &str, animations_path: &str) -> Result<Self, Error> {
+    pub async fn new(texture_path: &str, animations_path: &str) -> Result<Self, Error> {
         Ok(Self {
             texture: load_texture(texture_path).await?,
             animations: PersonAnimations::load(animations_path).await?,
@@ -76,7 +135,7 @@ impl Personality {
 }
 
 #[derive(Clone, Debug)]
-struct Character<'a> {
+pub struct Character<'a> {
     look: &'a Personality,
     position: Vec2,
     direction: Vec2,
@@ -90,7 +149,7 @@ impl<'a> Character<'a> {
     const SPEED: f32 = 2.7778;
     const ANIMATION_PERIOD: Duration = Duration::from_millis(800);
 
-    fn new(look: &'a Personality, pos: Vec2, dir: Vec2) -> Self {
+    pub fn new(look: &'a Personality, pos: Vec2, dir: Vec2) -> Self {
         Self {
             look,
             position: pos,
@@ -100,7 +159,7 @@ impl<'a> Character<'a> {
         }
     }
 
-    fn step(&mut self, mut motion: Vec2, dt: Duration) {
+    pub fn step(&mut self, mut motion: Vec2, dt: Duration) {
         motion = motion.normalize_or_zero();
         if motion != Vec2::ZERO {
             self.direction = motion;
@@ -124,7 +183,7 @@ impl<'a> Object for Character<'a> {
         } else {
             Orientation::Back
         };
-        let flip_x = self.direction.x < 0.0;
+        let flip = self.direction.x < 0.0;
         let head_torso = &self.look.animations.head_torso[orientation as usize];
         let hands_legs = if self.velocity == Vec2::ZERO {
             &self.look.animations.hands_legs_stand[orientation as usize]
@@ -132,86 +191,14 @@ impl<'a> Object for Character<'a> {
             &self.look.animations.hands_legs_run[orientation as usize]
         };
 
-        let head_torso = Animation::new(
-            &self.look.texture,
-            head_torso,
-            Self::ANIMATION_PERIOD,
-            flip_x,
-        );
-        let hands_legs = Animation::new(
-            &self.look.texture,
-            hands_legs,
-            Self::ANIMATION_PERIOD,
-            flip_x,
-        );
+        let head_torso = Animation::new(&self.look.texture, head_torso, Self::ANIMATION_PERIOD)
+            .flip(flip, false);
+        let hands_legs = Animation::new(&self.look.texture, hands_legs, Self::ANIMATION_PERIOD)
+            .flip(flip, false);
 
         let size = scale * Self::SHAPE;
-        let pos = scale * self.position * Vec2::new(1.0, TILT) + offset - Self::CENTER;
+        let pos = scale * (self.position - Self::CENTER) * Vec2::new(1.0, TILT) + offset;
         head_torso.draw(pos, size, self.action_duration);
         hands_legs.draw(pos, size, self.action_duration);
-    }
-}
-
-pub async fn main() -> Result<(), Error> {
-    set_default_filter_mode(FilterMode::Nearest);
-    let man = Personality::new("assets/man.png", "assets/man.json").await?;
-
-    let mut player = Character::new(&man, Vec2::new(0.0, 0.0), Vec2::new(0.0, 1.0));
-
-    while !is_key_down(KeyCode::Escape) {
-        let dt = Duration::from_secs_f32(get_frame_time());
-
-        // Move
-        {
-            let mut motion = Vec2::ZERO;
-            if is_key_down(KeyCode::Up) || is_key_down(KeyCode::W) {
-                motion += Vec2::from([0.0, -1.0]);
-            }
-            if is_key_down(KeyCode::Down) || is_key_down(KeyCode::S) {
-                motion += Vec2::from([0.0, 1.0]);
-            }
-            if is_key_down(KeyCode::Left) || is_key_down(KeyCode::A) {
-                motion += Vec2::from([-1.0, 0.0]);
-            }
-            if is_key_down(KeyCode::Right) || is_key_down(KeyCode::D) {
-                motion += Vec2::from([1.0, 0.0]);
-            }
-
-            player.step(motion, dt);
-        }
-
-        // Draw
-        {
-            let scale = 120.0;
-            let offset = Vec2::from(screen_size()) / 2.0;
-
-            clear_background(color::DARKGREEN);
-
-            player.draw(scale, offset);
-        }
-
-        next_frame().await
-    }
-
-    Ok(())
-}
-
-pub struct Game {}
-
-impl Game {
-    pub async fn new() -> Result<Self, Error> {
-        Ok(Self {})
-    }
-}
-
-impl crate::Game for Game {
-    fn name(&self) -> String {
-        "Бег по лесу".to_owned()
-    }
-
-    fn draw_preview(&self, _rect: Rect) {}
-
-    fn launch(&self) -> Pin<Box<dyn Future<Output = Result<(), Error>>>> {
-        Box::pin(main())
     }
 }
