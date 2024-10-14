@@ -11,15 +11,15 @@ use std::{cell::RefCell, collections::HashMap, time::Duration};
 
 pub trait Object {
     fn pos(&self) -> Vec2;
-    fn draw(&self, scale: f32, offset: Vec2);
+    fn draw(&self);
 }
 
 impl<T: Object> Object for RefCell<T> {
     fn pos(&self) -> Vec2 {
         self.borrow().pos()
     }
-    fn draw(&self, scale: f32, offset: Vec2) {
-        self.borrow().draw(scale, offset);
+    fn draw(&self) {
+        self.borrow().draw();
     }
 }
 
@@ -60,7 +60,7 @@ impl<'a> Object for Tree<'a> {
     fn pos(&self) -> Vec2 {
         self.pos
     }
-    fn draw(&self, scale: f32, offset: Vec2) {
+    fn draw(&self) {
         let trunk = Animation::new(
             &self.species.texture,
             &self.species.animation.trunk,
@@ -72,8 +72,8 @@ impl<'a> Object for Tree<'a> {
             Self::ANIMATION_PERIOD,
         );
 
-        let size = scale * self.growth * Self::SHAPE;
-        let pos = scale * (self.pos - self.growth * Self::CENTER) * Vec2::new(1.0, TILT) + offset;
+        let size = self.growth * Self::SHAPE;
+        let pos = (self.pos - self.growth * Self::CENTER) * Vec2::new(1.0, TILT);
         trunk.draw(pos, size, Duration::ZERO);
         leaves.draw(pos, size, Duration::ZERO);
     }
@@ -144,7 +144,7 @@ pub struct Character<'a> {
 }
 
 impl<'a> Character<'a> {
-    const SHAPE: Vec2 = Vec2::new(1.0, 2.0);
+    const SIZE: Vec2 = Vec2::new(1.0, 2.0);
     const CENTER: Vec2 = Vec2::new(0.5, 1.8);
     const SPEED: f32 = 2.7778;
     const ANIMATION_PERIOD: Duration = Duration::from_millis(800);
@@ -175,7 +175,7 @@ impl<'a> Object for Character<'a> {
     fn pos(&self) -> Vec2 {
         self.position
     }
-    fn draw(&self, scale: f32, offset: Vec2) {
+    fn draw(&self) {
         let orientation = if !(-TILT..=TILT).contains(&self.direction.x) {
             Orientation::Side
         } else if self.direction.y > 0.0 {
@@ -196,8 +196,8 @@ impl<'a> Object for Character<'a> {
         let hands_legs = Animation::new(&self.look.texture, hands_legs, Self::ANIMATION_PERIOD)
             .flip(flip, false);
 
-        let size = scale * Self::SHAPE;
-        let pos = scale * (self.position - Self::CENTER) * Vec2::new(1.0, TILT) + offset;
+        let size = Self::SIZE;
+        let pos = (self.position - Self::CENTER) * Vec2::new(1.0, TILT);
         head_torso.draw(pos, size, self.action_duration);
         hands_legs.draw(pos, size, self.action_duration);
     }
