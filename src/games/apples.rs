@@ -17,22 +17,59 @@ use macroquad::{
 use rand::{distributions::Uniform, rngs::SmallRng, Rng, SeedableRng};
 use std::{future::Future, pin::Pin, time::Duration};
 
+/// Grammatical gender
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+enum Gender {
+    Masculine,
+    Feminine,
+    Neuter,
+}
+
+struct Item {
+    image: Texture2D,
+    stem: &'static str,
+    endings: [&'static str; 3],
+    gender: Gender,
+}
+
 const INPUT_TIMEOUT: Duration = Duration::from_secs(4);
 
 pub async fn main() -> Result<(), Error> {
     set_default_filter_mode(FilterMode::Nearest);
-    let apple = load_texture("assets/apple.png").await?;
+    let items = [
+        Item {
+            image: load_texture("assets/apple.png").await?,
+            stem: "яблок",
+            endings: ["о", "а", ""],
+            gender: Gender::Neuter,
+        },
+        Item {
+            image: load_texture("assets/pear.png").await?,
+            stem: "груш",
+            endings: ["а", "и", ""],
+            gender: Gender::Feminine,
+        },
+        Item {
+            image: load_texture("assets/orange.png").await?,
+            stem: "апельсин",
+            endings: ["", "а", "ов"],
+            gender: Gender::Masculine,
+        },
+    ];
 
     let font = load_ttf_font("assets/default.ttf").await?;
     {
         let mut ui = root_ui();
         let style = ui
             .style_builder()
-            .color(color::GRAY)
-            .color_hovered(color::LIGHTGRAY)
-            .color_clicked(color::WHITE)
             .with_font(&font)?
             .font_size(20)
+            .color(color::BLACK)
+            .color_hovered(color::WHITE)
+            .color_clicked(color::RED)
+            .text_color(color::WHITE)
+            .text_color_hovered(color::BLACK)
+            .text_color_clicked(color::BLACK)
             .build();
         let skin = Skin {
             button_style: style,
@@ -46,6 +83,7 @@ pub async fn main() -> Result<(), Error> {
 
     let mut rng = SmallRng::from_entropy();
     let mut number: i64 = rng.sample(Uniform::new_inclusive(1, max_number));
+    let mut item = &items[0];
 
     let mut input = Vec::<i64>::new();
     let mut input_cooldown = Duration::ZERO;
@@ -105,6 +143,9 @@ pub async fn main() -> Result<(), Error> {
             if keys.contains(&KeyCode::Enter) || keys.contains(&KeyCode::Space) {
                 apply = true;
             }
+            if keys.contains(&KeyCode::Backspace) || keys.contains(&KeyCode::Delete) {
+                input.clear();
+            }
 
             if apply && !input.is_empty() || 10i64.pow(input.len() as u32) >= max_number {
                 number = input.iter().fold(0, |a, n| a * 10 + n);
@@ -122,7 +163,7 @@ pub async fn main() -> Result<(), Error> {
                 number,
                 Vec2::new(viewport.x / 2.0, viewport.y / 4.0),
                 scale,
-                &apple,
+                &item.image,
                 true,
             );
         } else {
@@ -130,7 +171,7 @@ pub async fn main() -> Result<(), Error> {
                 number,
                 Vec2::new(viewport.x / 4.0, viewport.y / 4.0),
                 0.5 * scale,
-                &apple,
+                &item.image,
                 false,
             );
         }
@@ -151,8 +192,9 @@ pub async fn main() -> Result<(), Error> {
             Vec2::new(0.75 * viewport.x, 0.5 * viewport.y)
         };
         if !input.is_empty() {
+            let text = input.iter().fold(String::new(), |s, n| s + &n.to_string()) + "_";
             draw_text_aligned(
-                &(input.iter().fold(String::new(), |s, n| s + &n.to_string()) + "_"),
+                &text,
                 text_pos.x,
                 text_pos.y - 2.0 * scale,
                 TextAlign::Center,
@@ -171,7 +213,7 @@ pub async fn main() -> Result<(), Error> {
             color::WHITE,
         );
         draw_text_aligned(
-            &items_text(number),
+            &items_text(number, item.stem, item.endings, item.gender),
             text_pos.x,
             text_pos.y + 1.0 * scale,
             TextAlign::Center,
@@ -182,6 +224,17 @@ pub async fn main() -> Result<(), Error> {
 
         {
             let mut ui = root_ui();
+
+            for (i, it) in items.iter().enumerate() {
+                if Button::new(it.image.clone())
+                    .position(Vec2::new(10.0 + i as f32 * (10.0 + 32.0), 10.0))
+                    .size(Vec2::new(32.0, 32.0))
+                    .ui(&mut ui)
+                {
+                    item = it;
+                }
+            }
+
             if Button::new("10")
                 .position(Vec2::new(viewport.x - 70.0, 10.0))
                 .size(Vec2::new(60.0, 30.0))
@@ -230,16 +283,16 @@ fn draw_items(number: i64, pos: Vec2, scale: f32, texture: &Texture2D, gap: bool
     }
 }
 
-fn items_text(mut n: i64) -> String {
+fn items_text(mut n: i64, stem: &str, endings: [&str; 3], gender: Gender) -> String {
     n = n.abs();
     let mut words = Vec::new();
 
     if n == 0 {
-        words.push("ноль");
+        words.push("ноль".to_string());
     } else {
         let h = n / 100;
         if h == 1 {
-            words.push("сто");
+            words.push("сто".to_string());
         } else if h != 0 {
             unimplemented!();
         }
@@ -260,7 +313,8 @@ fn items_text(mut n: i64) -> String {
                     "семнадцать",
                     "восемнадцать",
                     "девятнадцать",
-                ][u as usize],
+                ][u as usize]
+                    .to_string(),
             )
         } else {
             if d > 1 {
@@ -274,14 +328,22 @@ fn items_text(mut n: i64) -> String {
                         "семьдесят",
                         "восемьдесят",
                         "девяносто",
-                    ][(d - 2) as usize],
+                    ][(d - 2) as usize]
+                        .to_string(),
                 );
             }
             if u != 0 {
                 words.push(
                     [
-                        "одно",
-                        "два",
+                        match gender {
+                            Gender::Masculine => "один",
+                            Gender::Feminine => "одна",
+                            Gender::Neuter => "одно",
+                        },
+                        match gender {
+                            Gender::Feminine => "две",
+                            _ => "два",
+                        },
                         "три",
                         "четыре",
                         "пять",
@@ -289,24 +351,24 @@ fn items_text(mut n: i64) -> String {
                         "семь",
                         "восемь",
                         "девять",
-                    ][(u - 1) as usize],
+                    ][(u - 1) as usize]
+                        .to_string(),
                 );
             }
         }
     }
 
-    let mut words: Vec<_> = words.into_iter().map(String::from).collect();
     words.push(format!(
-        "яблок{}",
+        "{stem}{}",
         if (n % 100) / 10 != 1 {
             match n % 10 {
-                0 | 5..=9 => "",
-                1 => "о",
-                2..=4 => "а",
+                1 => endings[0],
+                2..=4 => endings[1],
+                0 | 5..=9 => endings[2],
                 _ => unreachable!(),
             }
         } else {
-            ""
+            endings[2]
         }
     ));
 
