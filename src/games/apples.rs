@@ -1,4 +1,4 @@
-use crate::text::{Text, TextAlign};
+use crate::text::{draw_text_aligned, TextAlign};
 use anyhow::Error;
 use macroquad::{
     color,
@@ -78,23 +78,32 @@ pub async fn main() -> Result<(), Error> {
             }
         }
 
-        Text::new("=", 100.0 * scale, Some(&font)).draw(
+        draw_text_aligned(
+            "=",
             viewport.x / 2.0,
             viewport.y / 2.0,
             TextAlign::Center,
+            Some(&font),
+            100.0 * scale,
             color::WHITE,
         );
-        Text::new(format!("{number}"), 100.0 * scale, Some(&font)).draw(
+        draw_text_aligned(
+            &format!("{number}"),
             viewport.x / 2.0,
             viewport.y * 3.0 / 4.0,
             TextAlign::Center,
+            Some(&font),
+            100.0 * scale,
             color::WHITE,
         );
 
-        Text::new(items_name(number), 50.0 * scale, Some(&font)).draw(
+        draw_text_aligned(
+            &items_text(number),
             viewport.x / 2.0,
             viewport.y * 7.0 / 8.0,
             TextAlign::Center,
+            Some(&font),
+            25.0 * scale,
             color::WHITE,
         );
 
@@ -104,9 +113,73 @@ pub async fn main() -> Result<(), Error> {
     Ok(())
 }
 
-fn items_name(n: i64) -> String {
-    let n = n.abs();
-    format!(
+fn items_text(mut n: i64) -> String {
+    n = n.abs();
+    let mut words = Vec::new();
+
+    let h = n / 100;
+    if h == 1 {
+        words.push("сто");
+    } else if h != 0 {
+        unimplemented!();
+    }
+    n %= 100;
+
+    if n == 0 {
+        words.push("ноль");
+    } else {
+        let d = n / 10;
+        let u = n % 10;
+        if d == 1 {
+            words.push(
+                [
+                    "десять",
+                    "одиинадцать",
+                    "двенадцать",
+                    "тринадцать",
+                    "четырнадцать",
+                    "пятнадцать",
+                    "шестнадцать",
+                    "семнадцать",
+                    "восемнадцать",
+                    "девятнадцать",
+                ][u as usize],
+            )
+        } else {
+            if d > 1 {
+                words.push(
+                    [
+                        "двадцать",
+                        "тридцать",
+                        "сорок",
+                        "пятьдесят",
+                        "шестьдесят",
+                        "семьдесят",
+                        "восемьдесят",
+                        "девяносто",
+                    ][(d - 2) as usize],
+                );
+            }
+            if u != 0 {
+                words.push(
+                    [
+                        "одно",
+                        "два",
+                        "три",
+                        "четыре",
+                        "пять",
+                        "шесть",
+                        "семь",
+                        "восемь",
+                        "девять",
+                    ][(u - 1) as usize],
+                );
+            }
+        }
+    }
+
+    let mut words: Vec<_> = words.into_iter().map(String::from).collect();
+    words.push(format!(
         "яблок{}",
         if (n % 100) / 10 != 1 {
             match n % 10 {
@@ -118,7 +191,9 @@ fn items_name(n: i64) -> String {
         } else {
             ""
         }
-    )
+    ));
+
+    words.join(" ")
 }
 
 pub struct Game {

@@ -1,4 +1,4 @@
-use crate::text::{Text, TextAlign};
+use crate::text::{draw_text_aligned, TextAlign};
 use anyhow::Error;
 use core::f32;
 use derive_more::derive::{Deref, DerefMut};
@@ -178,29 +178,41 @@ pub async fn main() -> Result<(), Error> {
                 player.draw(scale, map_offset);
 
                 let text_offset = 6.0;
-                Text::new("Собрано", scale * 0.8, Some(&font)).draw(
+                draw_text_aligned(
+                    "Собрано",
                     text_offset,
                     scale * 0.8,
                     TextAlign::Left,
+                    Some(&font),
+                    scale * 0.8,
                     color::WHITE,
                 );
-                Text::new(
-                    format!("{}", num_items - items.len()),
-                    scale * 2.0,
+                draw_text_aligned(
+                    &format!("{}", num_items - items.len()),
+                    text_offset,
+                    scale * 2.6,
+                    TextAlign::Left,
                     Some(&font),
-                )
-                .draw(text_offset, scale * 2.6, TextAlign::Left, color::WHITE);
+                    scale * 2.0,
+                    color::WHITE,
+                );
 
-                Text::new("Осталось", scale * 0.8, Some(&font)).draw(
+                draw_text_aligned(
+                    "Осталось",
                     viewport.x - text_offset,
                     scale * 0.8,
                     TextAlign::Right,
+                    Some(&font),
+                    scale * 0.8,
                     color::WHITE,
                 );
-                Text::new(format!("{}", items.len()), scale * 2.0, Some(&font)).draw(
+                draw_text_aligned(
+                    &format!("{}", items.len()),
                     viewport.x - text_offset,
                     scale * 2.6,
                     TextAlign::Right,
+                    Some(&font),
+                    scale * 2.0,
                     color::WHITE,
                 );
             }
