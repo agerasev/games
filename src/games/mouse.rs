@@ -4,6 +4,7 @@ use core::f32;
 use derive_more::derive::{Deref, DerefMut};
 use futures::{future::try_join_all, TryFutureExt};
 use macroquad::{
+    camera::{set_camera, set_default_camera, Camera2D},
     color,
     input::{is_key_down, KeyCode},
     math::{Rect, Vec2},
@@ -33,14 +34,14 @@ pub struct Item {
 }
 
 impl Item {
-    pub fn draw(&self, scale: f32, offset: Vec2) {
+    pub fn draw(&self, offset: Vec2) {
         draw_texture_ex(
             &self.image,
-            (self.pos.x + offset.x - self.radius) * scale,
-            (self.pos.y + offset.y - self.radius) * scale,
+            self.pos.x + offset.x - self.radius,
+            self.pos.y + offset.y - self.radius,
             color::WHITE,
             DrawTextureParams {
-                dest_size: Some(scale * 2.0 * Vec2::new(self.radius, self.radius)),
+                dest_size: Some(2.0 * Vec2::new(self.radius, self.radius)),
                 ..Default::default()
             },
         );
@@ -108,9 +109,6 @@ pub async fn main() -> Result<(), Error> {
                 return Ok(());
             }
 
-            let viewport = Vec2::from(screen_size());
-            let scale = (viewport / map_size).min_element();
-            let map_offset = (viewport / scale - map_size) / 2.0;
             let dt = Duration::from_secs_f32(get_frame_time());
 
             // Move player
@@ -159,23 +157,28 @@ pub async fn main() -> Result<(), Error> {
 
             // Draw frame
             {
+                let viewport = Vec2::from(screen_size());
+                let scale = (viewport / map_size).min_element();
+
                 clear_background(color::BLACK);
 
-                draw_rectangle(
-                    scale * map_offset.x,
-                    scale * map_offset.y,
-                    scale * map_size.x,
-                    scale * map_size.y,
-                    color::DARKGRAY,
-                );
+                {
+                    let camera = Camera2D {
+                        zoom: 2.0 * viewport.recip() * scale,
+                        target: map_size / 2.0,
+                        ..Default::default()
+                    };
+                    set_camera(&camera);
 
-                for item in &items {
-                    item.draw(
-                        scale,
-                        map_offset + Vec2::new(0.0, 0.1 * (PI * get_time() as f32).sin()),
-                    );
+                    draw_rectangle(0.0, 0.0, map_size.x, map_size.y, color::DARKGRAY);
+
+                    for item in &items {
+                        item.draw(Vec2::new(0.0, 0.1 * (PI * get_time() as f32).sin()));
+                    }
+                    player.draw(Vec2::ZERO);
+
+                    set_default_camera();
                 }
-                player.draw(scale, map_offset);
 
                 let text_offset = 6.0;
                 Text::new("Собрано", scale * 0.8, Some(&font)).draw(
