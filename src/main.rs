@@ -46,7 +46,11 @@ async fn main() -> Result<(), Error> {
                     size,
                 )
             });
-            let text = Text::new(game.name(), rect.size().min_element() / 10.0, Some(&font));
+            let text = Text::new(
+                game.name(),
+                Some(font.clone()),
+                rect.size().min_element() / 10.0,
+            );
             text.draw(
                 rect.center().x,
                 rect.bottom() - text.size / 2.0,
