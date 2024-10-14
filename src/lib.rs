@@ -1,6 +1,7 @@
 pub mod animation;
 pub mod games;
 pub mod layout;
+pub mod solver;
 pub mod text;
 
 use anyhow::Error;
