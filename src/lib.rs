@@ -1,5 +1,4 @@
 pub mod animation;
-pub mod button;
 pub mod games;
 pub mod layout;
 pub mod text;
