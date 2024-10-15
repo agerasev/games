@@ -19,8 +19,8 @@ const TILT: f32 = 0.6667;
 
 pub async fn main() -> Result<(), Error> {
     set_default_filter_mode(FilterMode::Nearest);
-    let tree = TreeSpecies::load("assets/tree.png", "assets/tree.json").await?;
-    let man = Personality::new("assets/man.png", "assets/man.json").await?;
+    let tree = TreeSpecies::load("tree.png", "tree.json").await?;
+    let man = Personality::new("man.png", "man.json").await?;
 
     let some_tree = Tree {
         species: &tree,
