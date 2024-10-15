@@ -235,8 +235,8 @@ fn sample_item(mut rng: impl Rng, box_size: Vec2) -> Ball {
 }
 
 pub async fn main() -> Result<(), Error> {
-    let ball_tex = load_texture("assets/ball.png").await?;
-    let font = load_ttf_font("assets/default.ttf").await?;
+    let ball_tex = load_texture("ball.png").await?;
+    let font = load_ttf_font("default.ttf").await?;
 
     let mut rng = SmallRng::from_entropy();
     let scale = 640.0;

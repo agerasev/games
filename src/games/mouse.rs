@@ -58,14 +58,14 @@ pub struct Player {
 
 pub async fn main() -> Result<(), Error> {
     set_default_filter_mode(FilterMode::Nearest);
-    let player_image = load_texture("assets/mouse.png").await?;
+    let player_image = load_texture("mouse.png").await?;
     let items_images_and_probs = try_join_all(
-        vec![("assets/cheese.png", 0.8), ("assets/apple.png", 0.2)]
+        vec![("cheese.png", 0.8), ("apple.png", 0.2)]
             .into_iter()
             .map(|(path, prob)| load_texture(path).map_ok(move |t| (t, prob))),
     )
     .await?;
-    let font = load_ttf_font("assets/default.ttf").await?;
+    let font = load_ttf_font("default.ttf").await?;
 
     let mut rng = SmallRng::from_entropy();
 
@@ -234,8 +234,8 @@ impl Game {
     pub async fn new() -> Result<Self, Error> {
         set_default_filter_mode(FilterMode::Nearest);
         Ok(Self {
-            mouse: load_texture("assets/mouse.png").await?,
-            cheese: load_texture("assets/cheese.png").await?,
+            mouse: load_texture("mouse.png").await?,
+            cheese: load_texture("cheese.png").await?,
         })
     }
 }

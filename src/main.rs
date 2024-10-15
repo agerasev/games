@@ -1,6 +1,7 @@
 use anyhow::Error;
 use macroquad::{
     color,
+    file::set_pc_assets_folder,
     input::{is_mouse_button_pressed, mouse_position, MouseButton},
     math::{Rect, Vec2},
     miniquad::window::{screen_size, set_window_size},
@@ -16,8 +17,10 @@ use yarik::{
 
 #[macroquad::main("Yarik")]
 async fn main() -> Result<(), Error> {
+    set_pc_assets_folder("assets");
+
     let games = games::all().await?;
-    let font = load_ttf_font("assets/default.ttf").await?;
+    let font = load_ttf_font("default.ttf").await?;
 
     set_window_size(1280, 720);
 

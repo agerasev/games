@@ -38,26 +38,26 @@ pub async fn main() -> Result<(), Error> {
     set_default_filter_mode(FilterMode::Nearest);
     let items = [
         Item {
-            image: load_texture("assets/apple.png").await?,
+            image: load_texture("apple.png").await?,
             stem: "яблок",
             endings: ["о", "а", ""],
             gender: Gender::Neuter,
         },
         Item {
-            image: load_texture("assets/pear.png").await?,
+            image: load_texture("pear.png").await?,
             stem: "груш",
             endings: ["а", "и", ""],
             gender: Gender::Feminine,
         },
         Item {
-            image: load_texture("assets/orange.png").await?,
+            image: load_texture("orange.png").await?,
             stem: "апельсин",
             endings: ["", "а", "ов"],
             gender: Gender::Masculine,
         },
     ];
 
-    let font = load_ttf_font("assets/default.ttf").await?;
+    let font = load_ttf_font("default.ttf").await?;
     {
         let mut ui = root_ui();
         let style = ui
@@ -383,7 +383,7 @@ impl Game {
     pub async fn new() -> Result<Self, Error> {
         set_default_filter_mode(FilterMode::Nearest);
         Ok(Self {
-            apple: load_texture("assets/apple.png").await?,
+            apple: load_texture("apple.png").await?,
         })
     }
 }
