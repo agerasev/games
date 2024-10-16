@@ -26,9 +26,9 @@ use std::{f32::consts::PI, future::Future, pin::Pin, time::Duration};
 /// Gravitational acceleration
 const G: Vec2 = Vec2::new(0.0, 4.0);
 /// Elasticity of balls
-const ELA: f32 = 200.0;
+const ELAST: f32 = 100.0;
 /// Amortization factor.
-const AMO: f32 = 0.2;
+const AMORT: f32 = 0.2;
 /// Sliding friction.
 const FRICT: f32 = 0.2;
 
@@ -68,29 +68,20 @@ impl Ball {
         *self.vel + self.asp.vel_at(p - *self.pos)
     }
 
-    fn push(&mut self, dir_dev: Vec2) {
-        self.vel.add_derivative(ELA * dir_dev / self.mass);
-    }
-
-    /// Influence ball by something with point of contact `pos` and normal `norm` moving with velocity `v`.
-    fn contact(&mut self, pos: Vec2, norm: Vec2, vel: Vec2) {
+    /// Influence ball by directed deformation `def` at point of contact `pos` moving with velocity `vel`.
+    fn contact(&mut self, def: Vec2, pos: Vec2, vel: Vec2) {
         let rel_pos = pos - *self.pos;
-        let dist = rel_pos.length();
-        // Deviation from radius
-        let dev = self.radius - dist;
 
-        // Normal reaction
-        let norm_react = ELA * dev;
-        // Elastic force
-        let ela_f = norm_react * norm;
+        let norm = def.normalize_or_zero();
+        // Elastic force (normal reaction)
+        let elast_f = ELAST * def;
         // Amortization force (parallel to `norm`)
-        let amo_f = -AMO * (*self.vel - vel).project_onto_normalized(norm) * norm_react;
+        let amort_f = -AMORT * (*self.vel - vel).dot(norm) * elast_f;
         // Friction force (orthogonal to `norm`)
-        let frict_f = -FRICT
-            * (*self.vel + self.asp.vel_at(rel_pos) - vel).reject_from_normalized(norm)
-            * norm_react;
+        let frict_f =
+            -FRICT * (*self.vel + self.asp.vel_at(rel_pos) - vel).dot(norm.perp()) * elast_f.perp();
         // Total force
-        let total_f = ela_f + amo_f + frict_f;
+        let total_f = elast_f + amort_f + frict_f;
 
         self.vel.add_derivative(total_f / self.mass);
         self.asp
@@ -100,10 +91,14 @@ impl Ball {
 
 fn contact_wall(item: &mut Ball, offset: f32, norm: Vec2) {
     let dist = item.pos.dot(norm) + offset;
-    if dist < 0.0 {
-        item.push(norm * (-dist + item.radius));
-    } else if dist < item.radius {
-        item.contact(item.pos.reject_from(norm) - offset * norm, norm, Vec2::ZERO);
+    if dist < item.radius {
+        let def = norm * (item.radius - dist);
+        let poc = if dist > 0.0 {
+            item.pos.reject_from(norm) - offset * norm
+        } else {
+            *item.pos
+        };
+        item.contact(def, poc, Vec2::ZERO);
     }
 }
 
@@ -135,25 +130,25 @@ impl System for ToyBox {
             for other in other_items {
                 let rel_pos = *other.pos - *item.pos;
                 let dist = rel_pos.length();
-                let dev = ((item.radius + other.radius) - dist) / 2.0;
-                if dev > 0.0 {
+                let radius_sum = item.radius + other.radius;
+                if dist < radius_sum {
                     let dir = rel_pos.normalize_or_zero();
-                    if 2.0 * dev < item.radius.min(other.radius) {
-                        // Point of contact
-                        let poc = *item.pos + dir * (item.radius - dev);
-                        item.contact(poc, -dir, other.vel_at(poc));
-                        other.contact(poc, dir, item.vel_at(poc));
-                    } else {
-                        item.push(-dir * dev);
-                        other.push(dir * dev);
-                    }
+                    let dev = (radius_sum - dist) / 2.0;
+                    // Point of contact
+                    let poc = (*item.pos * item.radius + *other.pos * other.radius) / radius_sum;
+                    item.contact(-dev * dir, poc, other.vel_at(poc));
+                    other.contact(dev * dir, poc, item.vel_at(poc));
                 }
             }
         }
 
         if let Some((i, drag_pos)) = self.drag {
             let item = &mut self.items[i];
-            item.vel.add_derivative(ELA * (drag_pos - *item.pos));
+            item.contact(
+                (drag_pos - *item.pos).clamp_length_max(item.radius),
+                *item.pos,
+                Vec2::ZERO,
+            );
         }
     }
 
