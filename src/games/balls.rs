@@ -68,6 +68,10 @@ impl Ball {
         *self.vel + self.asp.vel_at(p - *self.pos)
     }
 
+    fn push(&mut self, def: Vec2) {
+        self.vel.add_deriv(ELAST * def / self.mass);
+    }
+
     /// Influence ball by directed deformation `def` at point of contact `pos` moving with velocity `vel`.
     fn contact(&mut self, def: Vec2, pos: Vec2, vel: Vec2) {
         let rel_pos = pos - *self.pos;
@@ -83,22 +87,24 @@ impl Ball {
         // Total force
         let total_f = elast_f + amort_f + frict_f;
 
-        self.vel.add_derivative(total_f / self.mass);
+        self.vel.add_deriv(total_f / self.mass);
         self.asp
-            .add_derivative(Angular2::torque(rel_pos, total_f) / self.inm);
+            .add_deriv(Angular2::torque(rel_pos, total_f) / self.inm);
     }
 }
 
 fn contact_wall(item: &mut Ball, offset: f32, norm: Vec2) {
     let dist = item.pos.dot(norm) + offset;
     if dist < item.radius {
-        let def = norm * (item.radius - dist);
-        let poc = if dist > 0.0 {
-            item.pos.reject_from(norm) - offset * norm
+        if dist > 0.0 {
+            item.contact(
+                norm * (item.radius - dist),
+                item.pos.reject_from(norm) - offset * norm,
+                Vec2::ZERO,
+            );
         } else {
-            *item.pos
+            item.push(norm * item.radius);
         };
-        item.contact(def, poc, Vec2::ZERO);
     }
 }
 
@@ -109,13 +115,13 @@ struct ToyBox {
 }
 
 impl System for ToyBox {
-    fn compute_derivatives(&mut self) {
+    fn compute_derivs(&mut self) {
         for item in &mut self.items {
-            item.pos.add_derivative(*item.vel);
-            item.rot.add_derivative(*item.asp);
+            item.pos.add_deriv(*item.vel);
+            item.rot.add_deriv(*item.asp);
 
             // Gravity
-            item.vel.add_derivative(G);
+            item.vel.add_deriv(G);
 
             // Walls
             contact_wall(item, self.size.x, Vec2::new(1.0, 0.0));
@@ -130,14 +136,19 @@ impl System for ToyBox {
             for other in other_items {
                 let rel_pos = *other.pos - *item.pos;
                 let dist = rel_pos.length();
-                let radius_sum = item.radius + other.radius;
-                if dist < radius_sum {
+                let sum_radius = item.radius + other.radius;
+                if dist < sum_radius {
                     let dir = rel_pos.normalize_or_zero();
-                    let dev = (radius_sum - dist) / 2.0;
-                    // Point of contact
-                    let poc = (*item.pos * item.radius + *other.pos * other.radius) / radius_sum;
-                    item.contact(-dev * dir, poc, other.vel_at(poc));
-                    other.contact(dev * dir, poc, item.vel_at(poc));
+                    let dev = (sum_radius - dist) / 2.0;
+                    let min_radius = f32::min(item.radius, other.radius);
+                    if 2.0 * dev < min_radius {
+                        let poc = *item.pos + dir * (item.radius - dev);
+                        item.contact(-dev * dir, poc, other.vel_at(poc));
+                        other.contact(dev * dir, poc, item.vel_at(poc));
+                    } else {
+                        item.push(-min_radius * dir);
+                        other.push(min_radius * dir);
+                    }
                 }
             }
         }
@@ -152,7 +163,7 @@ impl System for ToyBox {
         }
     }
 
-    fn visit_parameters<V: Visitor>(&mut self, visitor: &mut V) {
+    fn visit_vars<V: Visitor>(&mut self, visitor: &mut V) {
         for item in &mut self.items {
             visitor.apply(&mut item.pos);
             visitor.apply(&mut item.vel);
@@ -213,7 +224,7 @@ impl ToyBox {
 fn sample_item(mut rng: impl Rng, box_size: Vec2) -> Ball {
     let radius: f32 = rng.sample(Uniform::new(0.1, 0.3));
     let mass = PI * radius.powi(2);
-    let eff_size = box_size - Vec2::splat(radius);
+    let eff_size = (box_size - Vec2::splat(radius)).max(Vec2::ZERO);
     Ball {
         radius,
         mass,
