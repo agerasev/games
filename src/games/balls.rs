@@ -11,7 +11,7 @@ use macroquad::{
         is_key_down, is_key_pressed, is_mouse_button_down, is_mouse_button_pressed,
         is_mouse_button_released, mouse_position, KeyCode, MouseButton,
     },
-    math::{Rect, Vec2},
+    math::{Rect, Vec2, Vec3, Vec4},
     miniquad::window::screen_size,
     shapes::draw_circle,
     text::load_ttf_font,
@@ -19,8 +19,12 @@ use macroquad::{
     time::get_frame_time,
     window::{clear_background, next_frame},
 };
+use noise::{
+    utils::{NoiseMapBuilder, PlaneMapBuilder},
+    Fbm, Perlin, Simplex,
+};
 use rand::{rngs::SmallRng, Rng, SeedableRng};
-use rand_distr::Uniform;
+use rand_distr::{Standard, Uniform};
 use std::{f32::consts::PI, future::Future, pin::Pin, time::Duration};
 
 /// Gravitational acceleration
@@ -236,15 +240,50 @@ fn sample_item(mut rng: impl Rng, box_size: Vec2) -> Ball {
         inm: 0.5 * mass * radius * radius,
         rot: Var::new(Rot2::default()),
         asp: Var::default(),
-        color: hsl_to_rgb(rng.sample(Uniform::new(0.0, 1.0)), 1.0, 0.75),
+        color: hsl_to_rgb(rng.sample(Uniform::new(0.0, 1.0)), 1.0, 0.5),
     }
 }
 
 pub async fn main() -> Result<(), Error> {
-    let ball_tex = load_texture("ball.png").await?;
+    let mut rng = SmallRng::from_entropy();
+
+    //let ball_tex = load_texture("ball.png").await?;
+    /*
+    let ball_tex = Texture2D::from_rgba8(
+        64,
+        64,
+        &(&mut rng)
+            .sample_iter(Uniform::new_inclusive(0.0, 1.0))
+            .take(64 * 64)
+            .flat_map(|v| {
+                Into::<[u8; 4]>::into(Color::from_vec(Vec4::from((
+                    Vec3::splat(0.2 * v + 0.75),
+                    1.0,
+                ))))
+            })
+            .collect::<Vec<u8>>(),
+    );
+    */
+    let ball_tex = Texture2D::from_rgba8(
+        256,
+        256,
+        &PlaneMapBuilder::new(Fbm::<Simplex>::new(rng.sample(Standard)))
+            .set_size(256, 256)
+            .set_x_bounds(-20.0, 20.0)
+            .set_y_bounds(-20.0, 20.0)
+            .build()
+            .into_iter()
+            .flat_map(|v| {
+                Into::<[u8; 4]>::into(Color::from_vec(Vec4::from((
+                    Vec3::splat(0.25 * v as f32 + 0.75),
+                    1.0,
+                ))))
+            })
+            .collect::<Vec<u8>>(),
+    );
+
     let font = load_ttf_font("default.ttf").await?;
 
-    let mut rng = SmallRng::from_entropy();
     let scale = 640.0;
     let mut viewport = Vec2::from(screen_size());
 
@@ -292,7 +331,7 @@ pub async fn main() -> Result<(), Error> {
         }
 
         {
-            clear_background(color::GRAY);
+            clear_background(color::BLACK);
 
             set_camera(&camera);
 
