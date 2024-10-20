@@ -1,6 +1,7 @@
 use crate::{
-    algebra::{Angular2, Rot2},
-    physics::{Solver, System, Var, Visitor},
+    algebra::Rot2,
+    numerical::{Solver, System, Var, Visitor},
+    physics::{angular_to_linear2, torque2},
     text::{draw_text_aligned, TextAlign},
 };
 use anyhow::Error;
@@ -44,7 +45,7 @@ struct Ball {
     /// Rotation.
     rot: Var<Rot2>,
     /// Angular speed.
-    asp: Var<Angular2>,
+    asp: Var<f32>,
 
     color: Color,
 }
@@ -65,7 +66,7 @@ impl Ball {
     }
 
     fn vel_at(&self, p: Vec2) -> Vec2 {
-        *self.vel + self.asp.vel_at(p - *self.pos)
+        *self.vel + angular_to_linear2(*self.asp, p - *self.pos)
     }
 
     fn push(&mut self, def: Vec2) {
@@ -82,14 +83,14 @@ impl Ball {
         // Amortization force (parallel to `norm`)
         let amort_f = -AMORT * (*self.vel - vel).dot(norm) * elast_f;
         // Friction force (orthogonal to `norm`)
-        let frict_f =
-            -FRICT * (*self.vel + self.asp.vel_at(rel_pos) - vel).dot(norm.perp()) * elast_f.perp();
+        let frict_f = -FRICT
+            * (*self.vel + angular_to_linear2(*self.asp, rel_pos) - vel).dot(norm.perp())
+            * elast_f.perp();
         // Total force
         let total_f = elast_f + amort_f + frict_f;
 
         self.vel.add_deriv(total_f / self.mass);
-        self.asp
-            .add_deriv(Angular2::torque(rel_pos, total_f) / self.inm);
+        self.asp.add_deriv(torque2(rel_pos, total_f) / self.inm);
     }
 }
 
