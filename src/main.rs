@@ -29,7 +29,9 @@ async fn main() -> Result<(), Error> {
             .iter()
             .find_map(|(k, v)| if k == &name { Some(v) } else { None })
         {
-            Some(game) => game.launch().await?,
+            Some(game) => {
+                return game.launch().await;
+            }
             None => panic!(
                 "Game not found: \"{name}\"\nAvailable games: {:?}",
                 games.iter().map(|(k, _)| k).collect::<Vec<_>>()
