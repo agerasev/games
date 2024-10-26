@@ -14,3 +14,5 @@ tobj = { version = "4.0.2", default-features = false }
 anyhow = "1.0.89"
 derive_more = { version = "1.0.0", features = ["full"] }
 defer = "0.2.1"
+itertools = "0.13.0"
+glam = { version = "0.27.0", features = ["rand"] }

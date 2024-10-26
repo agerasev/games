@@ -109,6 +109,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "either"
+version = "1.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "60b1af1c220855b6ceac025d3f6ecdd2b7c4894bfe9cd9bda4fbb4bc7c0d4cf0"
+
+[[package]]
 name = "fdeflate"
 version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -242,6 +248,9 @@ name = "glam"
 version = "0.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9e05e7e6723e3455f4818c7b26e855439f7546cf617ef669d1adedb8669e5cb9"
+dependencies = [
+ "rand",
+]
 
 [[package]]
 name = "hashbrown"
@@ -263,6 +272,15 @@ dependencies = [
  "color_quant",
  "num-traits",
  "png",
+]
+
+[[package]]
+name = "itertools"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
+dependencies = [
+ "either",
 ]
 
 [[package]]
@@ -615,6 +633,8 @@ dependencies = [
  "defer",
  "derive_more",
  "futures",
+ "glam",
+ "itertools",
  "macroquad",
  "rand",
  "rand_distr",

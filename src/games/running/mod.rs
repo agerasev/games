@@ -2,6 +2,7 @@ mod objects;
 
 use self::objects::{Character, Object, Personality};
 use anyhow::Error;
+use itertools::Itertools;
 use macroquad::{
     camera::{set_camera, set_default_camera, Camera2D},
     color,
@@ -13,6 +14,8 @@ use macroquad::{
     window::{clear_background, next_frame},
 };
 use objects::{Tree, TreeSpecies};
+use rand::{rngs::SmallRng, Rng, SeedableRng};
+use rand_distr::{Normal, Poisson, Uniform};
 use std::{future::Future, pin::Pin, time::Duration};
 
 const TILT: f32 = 0.6667;
@@ -22,11 +25,21 @@ pub async fn main() -> Result<(), Error> {
     let tree = TreeSpecies::load("tree.png", "tree.json").await?;
     let man = Personality::new("man.png", "man.json").await?;
 
-    let some_tree = Tree {
-        species: &tree,
-        pos: Vec2::new(2.0, -1.0),
-        growth: 2.0,
-    };
+    let mut rng = SmallRng::from_entropy();
+    let mut static_objects = (0..rng.sample(Poisson::new(64_f32)?).round() as usize)
+        .map(|_| {
+            Ok(Box::new(Tree {
+                species: &tree,
+                pos: Vec2::new(
+                    rng.sample(Normal::new(0.0, 10.0)?),
+                    rng.sample(Normal::new(0.0, 10.0)?),
+                ),
+                growth: rng.sample(Uniform::new(1.0, 3.0)),
+            }) as Box<dyn Object>)
+        })
+        .collect::<Result<Vec<_>, Error>>()?;
+    static_objects.sort_by(|a, b| f32::total_cmp(&a.pos().y, &b.pos().y));
+
     let mut player = Character::new(&man, Vec2::new(0.0, 0.0), Vec2::new(0.0, 1.0));
     let mut zoom = 0.1;
 
@@ -64,8 +77,13 @@ pub async fn main() -> Result<(), Error> {
             };
             set_camera(&camera);
 
-            some_tree.draw();
-            player.draw();
+            for obj in static_objects
+                .iter()
+                .map(|o| o.as_ref())
+                .merge_by([&player as &dyn Object], |a, b| a.pos().y < b.pos().y)
+            {
+                obj.draw();
+            }
 
             set_default_camera();
         }
