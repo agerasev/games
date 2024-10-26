@@ -116,7 +116,7 @@ struct ToyBox {
 }
 
 impl System for ToyBox {
-    fn compute_derivs(&mut self) {
+    fn compute_derivs(&mut self, _dt: f32) {
         for item in &mut self.items {
             item.pos.add_deriv(*item.vel);
             item.rot.add_deriv(*item.asp);
