@@ -140,6 +140,14 @@ pub async fn main() -> Result<(), Error> {
                 add += 1;
                 apply = true;
             }
+            if keys.contains(&KeyCode::PageDown) {
+                add -= 10;
+                apply = true;
+            }
+            if keys.contains(&KeyCode::PageUp) {
+                add += 10;
+                apply = true;
+            }
             if keys.contains(&KeyCode::Enter) || keys.contains(&KeyCode::Space) {
                 apply = true;
             }
