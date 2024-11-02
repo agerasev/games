@@ -10,7 +10,7 @@ use macroquad::{
     color::{self, hsl_to_rgb, Color},
     input::{
         is_key_down, is_key_pressed, is_mouse_button_down, is_mouse_button_pressed,
-        is_mouse_button_released, mouse_delta_position, mouse_position, KeyCode, MouseButton,
+        is_mouse_button_released, mouse_position, KeyCode, MouseButton,
     },
     math::{Rect, Vec2},
     miniquad::window::screen_size,
@@ -24,20 +24,23 @@ use rand::{rngs::SmallRng, Rng, SeedableRng};
 use rand_distr::Uniform;
 use std::{future::Future, pin::Pin, time::Duration};
 
-/// Gravitational acceleration
-const G: Vec2 = Vec2::new(0.0, 4.0);
 /// Mass factor
 const MASF: f32 = 1.0;
 /// Moment of inertia factor
 const INMF: f32 = 0.2;
+
+/// Gravitaty
+const GRAV: Vec2 = Vec2::new(0.0, 4.0);
+/// Air resistance
+const AIRF: f32 = 0.01;
 
 /// Elasticity of balls
 const ELAST: f32 = 100.0;
 
 /// Damping factor.
 const DAMP: f32 = 0.2;
-/// Liquid friction.
-const FRICT: f32 = 1.0;
+/// Liquid friction
+const FRICT: f32 = 0.5;
 
 /// Attraction damping.
 const ADAMP: f32 = 4.0;
@@ -78,11 +81,13 @@ impl Ball {
         *self.vel + angular_to_linear2(*self.asp, p - *self.pos)
     }
 
+    /// Push item at center by deformation .
     fn push(&mut self, def: Vec2) {
-        self.vel.add_deriv(ELAST * def / self.mass);
+        let total_f = ELAST * def - ADAMP * *self.vel;
+        self.vel.add_deriv(total_f / self.mass);
     }
 
-    /// Influence ball by directed deformation `def` at point of contact `pos` moving with velocity `vel`.
+    /// Influence item by directed deformation `def` at point of contact `pos` moving with velocity `vel`.
     fn contact(&mut self, def: Vec2, pos: Vec2, vel: Vec2) {
         let rel_pos = pos - *self.pos;
 
@@ -103,17 +108,21 @@ impl Ball {
         self.asp.add_deriv(torque2(rel_pos, total_f) / self.inm);
     }
 
-    fn attract(&mut self, pos: Vec2) {
-        let rel_pos = pos - *self.pos;
+    /// Pin `loc_pos` point in local item coordinates to `target` point in world space.
+    fn attract(&mut self, target: Vec2, loc_pos: Vec2) {
+        let loc_pos = self.rot.transform(loc_pos);
+        let rel_pos = target - (*self.pos + loc_pos);
+        let vel = *self.vel + angular_to_linear2(*self.asp, loc_pos);
 
         // Elastic attraction
         let elast_f = ELAST * rel_pos;
-
         // Constant damping
-        let total_f = elast_f - ADAMP * self.radius * self.vel.length().sqrt() * *self.vel;
+        let damp_f = -ADAMP * vel;
+        // Total force
+        let total_f = elast_f + damp_f;
 
         self.vel.add_deriv(total_f / self.mass);
-        self.asp.add_deriv(torque2(Vec2::ZERO, total_f) / self.inm);
+        self.asp.add_deriv(torque2(loc_pos, total_f) / self.inm);
     }
 }
 
@@ -141,7 +150,7 @@ fn contact_wall(item: &mut Ball, offset: f32, norm: Vec2) {
 struct ToyBox {
     size: Vec2,
     items: Vec<Ball>,
-    drag: Option<(usize, Vec2)>,
+    drag: Option<(usize, Vec2, Vec2)>,
 }
 
 impl System for ToyBox {
@@ -151,7 +160,13 @@ impl System for ToyBox {
             item.rot.add_deriv(*item.asp);
 
             // Gravity
-            item.vel.add_deriv(G);
+            item.vel.add_deriv(GRAV);
+
+            // Air resistance
+            item.vel
+                .add_deriv(-(AIRF * item.radius / item.mass) * *item.vel);
+            item.asp
+                .add_deriv(-(AIRF * item.radius / item.inm) * *item.asp);
 
             // Walls
             contact_wall(item, self.size.x, Vec2::new(1.0, 0.0));
@@ -183,9 +198,9 @@ impl System for ToyBox {
             }
         }
 
-        if let Some((i, drag_pos)) = self.drag {
+        if let Some((i, target, loc_pos)) = self.drag {
             let item = &mut self.items[i];
-            item.attract(drag_pos);
+            item.attract(target, loc_pos);
         }
     }
 
@@ -210,16 +225,18 @@ impl ToyBox {
 
     fn drag_acquire(&mut self, pos: Vec2) {
         self.drag = self.items.iter().enumerate().find_map(|(i, item)| {
-            if (pos - *item.pos).length() < item.radius {
-                Some((i, pos))
+            let rel_pos = pos - *item.pos;
+            if rel_pos.length() < item.radius {
+                let rpos = item.rot.inverse().transform(rel_pos);
+                Some((i, pos, rpos))
             } else {
                 None
             }
         })
     }
-    fn drag_move(&mut self, pos: Vec2, _vel: Vec2) {
-        if let Some((_, drag_pos)) = &mut self.drag {
-            *drag_pos = pos;
+    fn drag_move(&mut self, pos: Vec2) {
+        if let Some((_, target, ..)) = &mut self.drag {
+            *target = pos;
         }
     }
     fn drag_release(&mut self) {
@@ -299,7 +316,6 @@ pub async fn main() -> Result<(), Error> {
             }
 
             let mouse_pos = camera.screen_to_world(Vec2::from(mouse_position()));
-            let mouse_vel = mouse_delta_position() / camera.zoom;
             if is_mouse_button_pressed(MouseButton::Left) {
                 toy_box.drag_acquire(mouse_pos);
             }
@@ -307,7 +323,7 @@ pub async fn main() -> Result<(), Error> {
                 toy_box.drag_release();
             }
             if is_mouse_button_down(MouseButton::Left) {
-                toy_box.drag_move(mouse_pos, mouse_vel);
+                toy_box.drag_move(mouse_pos);
             } else {
                 toy_box.drag_release();
             }
