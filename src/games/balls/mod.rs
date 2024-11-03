@@ -4,9 +4,11 @@ use crate::{
     algebra::Rot2,
     numerical::{Solver, Var},
     text::{draw_text_aligned, TextAlign},
+    texture::noisy_texture,
 };
 use anyhow::Error;
 use derive_more::derive::{Deref, DerefMut};
+use glam::{Vec2, Vec3};
 use macroquad::{
     camera::{set_camera, set_default_camera, Camera2D},
     color::{self, hsl_to_rgb, Color},
@@ -14,9 +16,9 @@ use macroquad::{
         is_key_down, is_key_pressed, is_mouse_button_down, is_mouse_button_pressed,
         is_mouse_button_released, mouse_position, KeyCode, MouseButton,
     },
-    math::{Rect, Vec2},
+    math::Rect,
     miniquad::window::screen_size,
-    shapes::{draw_circle, draw_rectangle_ex, DrawRectangleParams},
+    shapes::{draw_circle, draw_rectangle_lines_ex, DrawRectangleParams},
     text::load_ttf_font,
     texture::{draw_texture_ex, load_texture, DrawTextureParams, Texture2D},
     time::get_frame_time,
@@ -33,34 +35,41 @@ pub struct Item {
     #[deref_mut]
     pub body: Body,
     pub shape: Shape,
+
+    pub texture: Texture2D,
     pub color: Color,
 }
 
 impl Item {
-    fn draw(&self, texture: &Texture2D) {
-        match &self.shape {
-            Shape::Circle { radius } => draw_texture_ex(
-                texture,
-                self.pos.x - *radius,
-                self.pos.y - *radius,
-                self.color,
-                DrawTextureParams {
-                    dest_size: Some(2.0 * Vec2::splat(*radius)),
-                    rotation: self.rot.angle(),
-                    ..Default::default()
-                },
-            ),
-            Shape::Rectangle { size } => draw_rectangle_ex(
+    fn draw(&self) {
+        let size = match &self.shape {
+            Shape::Circle { radius } => Vec2::splat(*radius),
+            Shape::Rectangle { size } => *size,
+        };
+        draw_texture_ex(
+            &self.texture,
+            self.pos.x - size.x,
+            self.pos.y - size.y,
+            self.color,
+            DrawTextureParams {
+                dest_size: Some(2.0 * size),
+                rotation: self.rot.angle(),
+                ..Default::default()
+            },
+        );
+        if let Shape::Rectangle { .. } = &self.shape {
+            draw_rectangle_lines_ex(
                 self.pos.x,
                 self.pos.y,
                 2.0 * size.x,
                 2.0 * size.y,
+                size.min_element() / 20.0,
                 DrawRectangleParams {
-                    offset: Vec2::splat(0.5),
+                    offset: Vec2::new(0.5, 0.5),
                     rotation: self.rot.angle(),
-                    color: self.color,
+                    color: color::BLACK,
                 },
-            ),
+            );
         }
     }
 }
@@ -115,25 +124,25 @@ impl World {
     fn resize(&mut self, size: Vec2) {
         self.size = size;
     }
-    fn draw(&self, ball_tex: &Texture2D) {
+    fn draw(&self) {
         for item in &self.items {
-            item.draw(ball_tex);
+            item.draw();
         }
     }
 }
 
-fn sample_item(mut rng: impl Rng, box_size: Vec2) -> Item {
+fn sample_item(mut rng: impl Rng, box_size: Vec2, textures: &TextureStorage) -> Item {
     let radius: f32 = rng.sample(Uniform::new(0.1, 0.3));
     let mass = physics::MASF * radius;
     let eff_size = (box_size - Vec2::splat(radius)).max(Vec2::ZERO);
+    let shape = if rng.sample(Standard) {
+        Shape::Circle { radius }
+    } else {
+        Shape::Rectangle {
+            size: Vec2::splat(radius),
+        }
+    };
     Item {
-        shape: if rng.sample(Standard) {
-            Shape::Circle { radius }
-        } else {
-            Shape::Rectangle {
-                size: Vec2::splat(radius),
-            }
-        },
         body: Body {
             mass,
             pos: Var::new(Vec2::new(
@@ -146,20 +155,36 @@ fn sample_item(mut rng: impl Rng, box_size: Vec2) -> Item {
             asp: Var::default(),
         },
         color: hsl_to_rgb(rng.sample(Uniform::new(0.0, 1.0)), 1.0, 0.75),
+        texture: match &shape {
+            Shape::Circle { .. } => textures.ball.clone(),
+            Shape::Rectangle { .. } => textures.noise.clone(),
+        },
+        shape,
     }
 }
 
+struct TextureStorage {
+    ball: Texture2D,
+    noise: Texture2D,
+}
+
 pub async fn main() -> Result<(), Error> {
-    let ball_tex = load_texture("ball.png").await?;
+    let mut rng = SmallRng::from_entropy();
+
     let font = load_ttf_font("default.ttf").await?;
 
-    let mut rng = SmallRng::from_entropy();
+    let textures = TextureStorage {
+        ball: load_texture("ball.png").await?,
+        noise: noisy_texture(&mut rng, 32, 32, Vec3::splat(0.75), Vec3::splat(0.25)),
+    };
+
     let scale = 640.0;
     let mut viewport = Vec2::from(screen_size());
 
     let mut toy_box = World::new(viewport / scale);
+
     for _ in 0..8 {
-        toy_box.insert_item(sample_item(&mut rng, toy_box.size));
+        toy_box.insert_item(sample_item(&mut rng, toy_box.size, &textures));
     }
 
     while !is_key_down(KeyCode::Escape) {
@@ -173,7 +198,7 @@ pub async fn main() -> Result<(), Error> {
 
         {
             if is_key_pressed(KeyCode::Equal) || is_key_pressed(KeyCode::KpAdd) {
-                toy_box.insert_item(sample_item(&mut rng, toy_box.size));
+                toy_box.insert_item(sample_item(&mut rng, toy_box.size, &textures));
             }
             if toy_box.n_items() != 0
                 && (is_key_pressed(KeyCode::Minus) || is_key_pressed(KeyCode::KpSubtract))
@@ -205,7 +230,7 @@ pub async fn main() -> Result<(), Error> {
 
             set_camera(&camera);
 
-            toy_box.draw(&ball_tex);
+            toy_box.draw();
 
             set_default_camera();
 

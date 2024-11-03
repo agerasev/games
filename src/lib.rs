@@ -7,6 +7,7 @@ pub mod model;
 pub mod numerical;
 pub mod physics;
 pub mod text;
+pub mod texture;
 
 use anyhow::Error;
 use macroquad::math::Rect;
