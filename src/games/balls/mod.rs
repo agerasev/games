@@ -18,16 +18,29 @@ use macroquad::{
     },
     math::Rect,
     miniquad::window::screen_size,
-    shapes::{draw_circle, draw_rectangle_lines_ex, DrawRectangleParams},
+    shapes::{
+        draw_circle, draw_circle_lines, draw_rectangle_lines, draw_rectangle_lines_ex,
+        draw_triangle, DrawRectangleParams,
+    },
     text::load_ttf_font,
     texture::{draw_texture_ex, load_texture, DrawTextureParams, Texture2D},
     time::get_frame_time,
     window::{clear_background, next_frame},
 };
-use physics::{Body, Shape};
+use physics::{Actor, Body, Shape, WALL_OFFSET};
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 use rand_distr::{Standard, Uniform};
 use std::{future::Future, pin::Pin, time::Duration};
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Default, Debug)]
+enum DrawMode {
+    #[default]
+    Normal,
+    Debug,
+}
+
+/// Drawing border thickness factor
+const BORDERX: f32 = 1.0 / 24.0;
 
 #[derive(Clone, Debug, Deref, DerefMut)]
 pub struct Item {
@@ -41,33 +54,52 @@ pub struct Item {
 }
 
 impl Item {
-    fn draw(&self) {
+    fn draw(&self, mode: DrawMode) {
         let size = match &self.shape {
             Shape::Circle { radius } => Vec2::splat(*radius),
             Shape::Rectangle { size } => *size,
         };
-        draw_texture_ex(
-            &self.texture,
-            self.pos.x - size.x,
-            self.pos.y - size.y,
-            self.color,
-            DrawTextureParams {
-                dest_size: Some(2.0 * size),
-                rotation: self.rot.angle(),
-                ..Default::default()
+        match mode {
+            DrawMode::Normal => {
+                draw_texture_ex(
+                    &self.texture,
+                    self.pos.x - size.x,
+                    self.pos.y - size.y,
+                    self.color,
+                    DrawTextureParams {
+                        dest_size: Some(2.0 * size),
+                        rotation: self.rot.angle(),
+                        ..Default::default()
+                    },
+                );
+            }
+            DrawMode::Debug => match &self.shape {
+                Shape::Circle { radius } => draw_circle_lines(
+                    self.pos.x,
+                    self.pos.y,
+                    *radius,
+                    BORDERX * radius,
+                    self.color,
+                ),
+                Shape::Rectangle { .. } => {
+                    // Draw later
+                }
             },
-        );
+        }
         if let Shape::Rectangle { .. } = &self.shape {
             draw_rectangle_lines_ex(
                 self.pos.x,
                 self.pos.y,
                 2.0 * size.x,
                 2.0 * size.y,
-                size.min_element() / 20.0,
+                BORDERX * size.min_element(),
                 DrawRectangleParams {
                     offset: Vec2::new(0.5, 0.5),
                     rotation: self.rot.angle(),
-                    color: color::BLACK,
+                    color: match mode {
+                        DrawMode::Normal => color::BLACK,
+                        DrawMode::Debug => self.color,
+                    },
                 },
             );
         }
@@ -124,9 +156,32 @@ impl World {
     fn resize(&mut self, size: Vec2) {
         self.size = size;
     }
-    fn draw(&self) {
+    fn draw(&self, mode: DrawMode) {
+        let wall_size = self.size - WALL_OFFSET * self.size.min_element();
+        match mode {
+            DrawMode::Normal => {
+                let thickness = 2.0 * WALL_OFFSET * self.size.max_element();
+                let wall_size = wall_size + 0.5 * thickness;
+                draw_rectangle_lines(
+                    -wall_size.x,
+                    -wall_size.y,
+                    2.0 * wall_size.x,
+                    2.0 * wall_size.y,
+                    thickness,
+                    color::WHITE,
+                );
+            }
+            DrawMode::Debug => draw_rectangle_lines(
+                -wall_size.x,
+                -wall_size.y,
+                2.0 * wall_size.x,
+                2.0 * wall_size.y,
+                0.3 * BORDERX,
+                color::WHITE,
+            ),
+        }
         for item in &self.items {
-            item.draw();
+            item.draw(mode);
         }
     }
 }
@@ -163,6 +218,22 @@ fn sample_item(mut rng: impl Rng, box_size: Vec2, textures: &TextureStorage) -> 
     }
 }
 
+const FORCEX: f32 = 0.05;
+
+struct DrawActor;
+impl Actor for DrawActor {
+    fn apply(&mut self, _: &mut Body, pos: Vec2, force: Vec2) {
+        let fpos = pos + FORCEX * force;
+        // Draw an arrow
+        draw_triangle(
+            fpos,
+            pos - BORDERX * FORCEX * force.perp(),
+            pos + BORDERX * FORCEX * force.perp(),
+            color::WHITE,
+        );
+    }
+}
+
 struct TextureStorage {
     ball: Texture2D,
     noise: Texture2D,
@@ -186,6 +257,8 @@ pub async fn main() -> Result<(), Error> {
     for _ in 0..8 {
         toy_box.insert_item(sample_item(&mut rng, toy_box.size, &textures));
     }
+
+    let mut mode = DrawMode::Normal;
 
     while !is_key_down(KeyCode::Escape) {
         viewport = Vec2::from(screen_size());
@@ -218,6 +291,13 @@ pub async fn main() -> Result<(), Error> {
             } else {
                 toy_box.drag_release();
             }
+
+            if is_key_pressed(KeyCode::Backslash) {
+                mode = match mode {
+                    DrawMode::Normal => DrawMode::Debug,
+                    DrawMode::Debug => DrawMode::Normal,
+                }
+            }
         }
 
         {
@@ -226,23 +306,31 @@ pub async fn main() -> Result<(), Error> {
         }
 
         {
-            clear_background(color::GRAY);
+            clear_background(match mode {
+                DrawMode::Normal => color::GRAY,
+                DrawMode::Debug => color::BLACK,
+            });
 
             set_camera(&camera);
 
-            toy_box.draw();
+            toy_box.draw(mode);
+            if mode == DrawMode::Debug {
+                toy_box.compute_derivs_ext(&mut DrawActor);
+            }
 
             set_default_camera();
 
-            draw_text_aligned(
-                &format!("{}", toy_box.n_items()),
-                viewport.x - 10.0,
-                40.0,
-                TextAlign::Right,
-                Some(&font),
-                40.0,
-                color::WHITE,
-            );
+            if mode == DrawMode::Normal {
+                draw_text_aligned(
+                    &format!("{}", toy_box.n_items()),
+                    viewport.x - 30.0,
+                    60.0,
+                    TextAlign::Right,
+                    Some(&font),
+                    40.0,
+                    color::WHITE,
+                );
+            }
         }
 
         next_frame().await

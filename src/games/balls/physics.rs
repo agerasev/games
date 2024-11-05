@@ -1,11 +1,10 @@
+use super::{Item, World};
 use crate::{
     algebra::Rot2,
     numerical::{System, Var, Visitor},
     physics::{angular_to_linear2, torque2},
 };
 use macroquad::math::Vec2;
-
-use super::{Item, World};
 
 /// Mass factor
 pub const MASF: f32 = 1.0;
@@ -48,6 +47,20 @@ impl Shape {
     }
 }
 
+pub trait Actor {
+    /// Apply force to the specific point of the body.
+    fn apply(&mut self, body: &mut Body, pos: Vec2, force: Vec2);
+}
+
+struct DerivActor;
+impl Actor for DerivActor {
+    fn apply(&mut self, body: &mut Body, pos: Vec2, force: Vec2) {
+        body.vel.add_deriv(force / body.mass);
+        body.asp
+            .add_deriv(torque2(pos - *body.pos, force) / body.inm);
+    }
+}
+
 /// Rigid body
 #[derive(Clone, Debug)]
 pub struct Body {
@@ -69,13 +82,13 @@ impl Body {
     }
 
     /// Push item at center by deformation .
-    pub fn push(&mut self, def: Vec2) {
+    pub fn push(&mut self, actor: &mut impl Actor, def: Vec2) {
         let total_f = ELAST * def - ADAMP * *self.vel;
-        self.vel.add_deriv(total_f / self.mass);
+        actor.apply(self, *self.pos, total_f);
     }
 
     /// Influence item by directed deformation `def` at point of contact `pos` moving with velocity `vel`.
-    pub fn contact(&mut self, def: Vec2, pos: Vec2, vel: Vec2) {
+    pub fn contact(&mut self, actor: &mut impl Actor, def: Vec2, pos: Vec2, vel: Vec2) {
         let rel_pos = pos - *self.pos;
 
         let norm = def.normalize_or_zero();
@@ -91,13 +104,12 @@ impl Body {
         // Total force
         let total_f = elast_f + damp_f + frict_f;
 
-        self.vel.add_deriv(total_f / self.mass);
-        self.asp.add_deriv(torque2(rel_pos, total_f) / self.inm);
+        actor.apply(self, pos, total_f);
     }
 
     /// Pin `loc_pos` point in local item coordinates to `target` point in world space.
-    pub fn attract(&mut self, target: Vec2, loc_pos: Vec2) {
-        let loc_pos = self.rot.transform(loc_pos);
+    pub fn attract(&mut self, actor: &mut impl Actor, target: Vec2, self_pos: Vec2) {
+        let loc_pos = self.rot.transform(self_pos);
         let rel_pos = target - (*self.pos + loc_pos);
         let vel = *self.vel + angular_to_linear2(*self.asp, loc_pos);
 
@@ -108,30 +120,33 @@ impl Body {
         // Total force
         let total_f = elast_f + damp_f;
 
-        self.vel.add_deriv(total_f / self.mass);
-        self.asp.add_deriv(torque2(loc_pos, total_f) / self.inm);
+        actor.apply(self, *self.pos + loc_pos, total_f);
     }
 }
 
-fn contact_wall(item: &mut Item, offset: f32, norm: Vec2) {
+fn contact_wall(actor: &mut impl Actor, item: &mut Item, offset: f32, norm: Vec2) {
     let pos = item.pos;
     let dist = pos.dot(norm) + offset;
     let radius = item.shape.radius();
     if dist < radius {
         if dist > 0.0 {
             item.body.contact(
+                actor,
                 norm * (radius - dist),
                 pos.reject_from(norm) - offset * norm,
                 Vec2::ZERO,
             );
         } else {
-            item.body.push(norm * radius);
+            item.body.push(actor, norm * radius);
         }
     }
 }
 
-impl System for World {
-    fn compute_derivs(&mut self, _dt: f32) {
+/// Wall offset factor
+pub const WALL_OFFSET: f32 = 0.04;
+
+impl World {
+    pub fn compute_derivs_ext(&mut self, actor: &mut impl Actor) {
         for item in self.items.iter_mut() {
             let radius = item.shape.radius();
             let body = &mut item.body;
@@ -140,17 +155,18 @@ impl System for World {
             body.rot.add_deriv(*body.asp);
 
             // Gravity
-            body.vel.add_deriv(GRAV);
+            actor.apply(body, *body.pos, GRAV * body.mass);
 
             // Air resistance
             body.vel.add_deriv(-(AIRF * radius / body.mass) * *body.vel);
             body.asp.add_deriv(-(AIRF * radius / body.inm) * *body.asp);
 
             // Walls
-            contact_wall(item, self.size.x, Vec2::new(1.0, 0.0));
-            contact_wall(item, self.size.x, Vec2::new(-1.0, 0.0));
-            contact_wall(item, self.size.y, Vec2::new(0.0, 1.0));
-            contact_wall(item, self.size.y, Vec2::new(0.0, -1.0));
+            let wall_size = self.size - WALL_OFFSET * self.size.min_element();
+            contact_wall(actor, item, wall_size.x, Vec2::new(1.0, 0.0));
+            contact_wall(actor, item, wall_size.x, Vec2::new(-1.0, 0.0));
+            contact_wall(actor, item, wall_size.y, Vec2::new(0.0, 1.0));
+            contact_wall(actor, item, wall_size.y, Vec2::new(0.0, -1.0));
         }
 
         for i in 1..self.items.len() {
@@ -166,11 +182,11 @@ impl System for World {
                     let min_radius = f32::min(this.shape.radius(), other.shape.radius());
                     if 2.0 * dev < min_radius {
                         let poc = *this.pos + dir * (this.shape.radius() - dev);
-                        this.contact(-dev * dir, poc, other.vel_at(poc));
-                        other.contact(dev * dir, poc, this.vel_at(poc));
+                        this.contact(actor, -dev * dir, poc, other.vel_at(poc));
+                        other.contact(actor, dev * dir, poc, this.vel_at(poc));
                     } else {
-                        this.push(-min_radius * dir);
-                        other.push(min_radius * dir);
+                        this.push(actor, -min_radius * dir);
+                        other.push(actor, min_radius * dir);
                     }
                 }
             }
@@ -178,10 +194,15 @@ impl System for World {
 
         if let Some((i, target, loc_pos)) = self.drag {
             let item = &mut self.items[i];
-            item.body.attract(target, loc_pos);
+            item.body.attract(actor, target, loc_pos);
         }
     }
+}
 
+impl System for World {
+    fn compute_derivs(&mut self, _dt: f32) {
+        self.compute_derivs_ext(&mut DerivActor);
+    }
     fn visit_vars<V: Visitor>(&mut self, visitor: &mut V) {
         for ent in &mut self.items {
             visitor.apply(&mut ent.pos);
