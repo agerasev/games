@@ -1,4 +1,4 @@
-use super::{Item, World};
+use super::{geometry::intersect_circle_and_plane, Item, World};
 use crate::{
     algebra::Rot2,
     numerical::{System, Var, Visitor},
@@ -124,21 +124,12 @@ impl Body {
     }
 }
 
-fn contact_wall(actor: &mut impl Actor, item: &mut Item, offset: f32, norm: Vec2) {
-    let pos = item.pos;
-    let dist = pos.dot(norm) + offset;
-    let radius = item.shape.radius();
-    if dist < radius {
-        if dist > 0.0 {
-            item.body.contact(
-                actor,
-                norm * (radius - dist),
-                pos.reject_from(norm) - offset * norm,
-                Vec2::ZERO,
-            );
-        } else {
-            item.body.push(actor, norm * radius);
-        }
+fn contact_wall(actor: &mut impl Actor, item: &mut Item, offset: f32, normal: Vec2) {
+    if let Some((area, barycenter)) =
+        intersect_circle_and_plane(*item.pos, item.shape.radius(), offset, normal)
+    {
+        item.body
+            .contact(actor, -0.1 * normal * area, barycenter, Vec2::ZERO);
     }
 }
 
@@ -163,10 +154,10 @@ impl World {
 
             // Walls
             let wall_size = self.size - WALL_OFFSET * self.size.min_element();
-            contact_wall(actor, item, wall_size.x, Vec2::new(1.0, 0.0));
-            contact_wall(actor, item, wall_size.x, Vec2::new(-1.0, 0.0));
-            contact_wall(actor, item, wall_size.y, Vec2::new(0.0, 1.0));
-            contact_wall(actor, item, wall_size.y, Vec2::new(0.0, -1.0));
+            contact_wall(actor, item, -wall_size.x, Vec2::new(1.0, 0.0));
+            contact_wall(actor, item, -wall_size.x, Vec2::new(-1.0, 0.0));
+            contact_wall(actor, item, -wall_size.y, Vec2::new(0.0, 1.0));
+            contact_wall(actor, item, -wall_size.y, Vec2::new(0.0, -1.0));
         }
 
         for i in 1..self.items.len() {
@@ -185,8 +176,8 @@ impl World {
                         this.contact(actor, -dev * dir, poc, other.vel_at(poc));
                         other.contact(actor, dev * dir, poc, this.vel_at(poc));
                     } else {
-                        this.push(actor, -min_radius * dir);
-                        other.push(actor, min_radius * dir);
+                        this.push(actor, -(min_radius / 2.0) * dir);
+                        other.push(actor, (min_radius / 2.0) * dir);
                     }
                 }
             }

@@ -1,3 +1,4 @@
+mod geometry;
 mod physics;
 
 use crate::{
@@ -29,7 +30,7 @@ use macroquad::{
 };
 use physics::{Actor, Body, Shape, WALL_OFFSET};
 use rand::{rngs::SmallRng, Rng, SeedableRng};
-use rand_distr::{Standard, Uniform};
+use rand_distr::Uniform;
 use std::{future::Future, pin::Pin, time::Duration};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Default, Debug)]
@@ -190,7 +191,7 @@ fn sample_item(mut rng: impl Rng, box_size: Vec2, textures: &TextureStorage) -> 
     let radius: f32 = rng.sample(Uniform::new(0.1, 0.3));
     let mass = physics::MASF * radius;
     let eff_size = (box_size - Vec2::splat(radius)).max(Vec2::ZERO);
-    let shape = if rng.sample(Standard) {
+    let shape = if rng.sample(Uniform::new(0.0, 1.0)) < 1.0 {
         Shape::Circle { radius }
     } else {
         Shape::Rectangle {
@@ -249,7 +250,7 @@ pub async fn main() -> Result<(), Error> {
         noise: noisy_texture(&mut rng, 32, 32, Vec3::splat(0.75), Vec3::splat(0.25)),
     };
 
-    let scale = 640.0;
+    let scale = 1280.0;
     let mut viewport = Vec2::from(screen_size());
 
     let mut toy_box = World::new(viewport / scale);
