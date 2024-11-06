@@ -1,3 +1,4 @@
+mod geometry;
 mod physics;
 
 use crate::{
@@ -29,7 +30,7 @@ use macroquad::{
 };
 use physics::{Actor, Body, Shape, WALL_OFFSET};
 use rand::{rngs::SmallRng, Rng, SeedableRng};
-use rand_distr::{Standard, Uniform};
+use rand_distr::Uniform;
 use std::{future::Future, pin::Pin, time::Duration};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Default, Debug)]
@@ -190,7 +191,7 @@ fn sample_item(mut rng: impl Rng, box_size: Vec2, textures: &TextureStorage) -> 
     let radius: f32 = rng.sample(Uniform::new(0.1, 0.3));
     let mass = physics::MASF * radius;
     let eff_size = (box_size - Vec2::splat(radius)).max(Vec2::ZERO);
-    let shape = if rng.sample(Standard) {
+    let shape = if rng.sample(Uniform::new(0.0, 1.0)) < 1.0 {
         Shape::Circle { radius }
     } else {
         Shape::Rectangle {
@@ -301,7 +302,9 @@ pub async fn main() -> Result<(), Error> {
         }
 
         {
-            let dt = Duration::from_secs_f32(get_frame_time().min(0.04));
+            let dt = Duration::from_secs_f32(
+                get_frame_time().min(0.04) / if mode == DrawMode::Debug { 10.0 } else { 1.0 },
+            );
             Solver.solve_step(&mut toy_box, dt.as_secs_f32());
         }
 
