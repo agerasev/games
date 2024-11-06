@@ -1,4 +1,7 @@
-use super::{geometry::intersect_circle_and_plane, Item, World};
+use super::{
+    geometry::{intersect_circle_and_plane, intersect_circles},
+    Item, World,
+};
 use crate::{
     algebra::Rot2,
     numerical::{System, Var, Visitor},
@@ -17,12 +20,12 @@ const GRAV: Vec2 = Vec2::new(0.0, 4.0);
 const AIRF: f32 = 0.01;
 
 /// Elasticity of balls
-const ELAST: f32 = 100.0;
+const ELAST: f32 = 30.0;
 
 /// Damping factor.
 const DAMP: f32 = 0.2;
 /// Liquid friction
-const FRICT: f32 = 0.5;
+const FRICT: f32 = 0.4;
 
 /// Attraction damping.
 const ADAMP: f32 = 4.0;
@@ -81,26 +84,18 @@ impl Body {
         *self.vel + angular_to_linear2(*self.asp, p - *self.pos)
     }
 
-    /// Push item at center by deformation .
-    pub fn push(&mut self, actor: &mut impl Actor, def: Vec2) {
-        let total_f = ELAST * def - ADAMP * *self.vel;
-        actor.apply(self, *self.pos, total_f);
-    }
-
     /// Influence item by directed deformation `def` at point of contact `pos` moving with velocity `vel`.
     pub fn contact(&mut self, actor: &mut impl Actor, def: Vec2, pos: Vec2, vel: Vec2) {
-        let rel_pos = pos - *self.pos;
+        let vel = self.vel_at(pos) - vel;
 
         let norm = def.normalize_or_zero();
         // Elastic force (normal reaction)
         let elast_f = ELAST * def;
 
         // Damping force (parallel to `norm`)
-        let damp_f = -DAMP * (*self.vel - vel).dot(norm) * elast_f;
+        let damp_f = -DAMP * vel.dot(norm) * elast_f;
         // Liquid friction force (perpendicular to `norm`)
-        let frict_f = -FRICT
-            * (*self.vel + angular_to_linear2(*self.asp, rel_pos) - vel).dot(norm.perp())
-            * elast_f.perp();
+        let frict_f = -FRICT * vel.dot(norm.perp()) * elast_f.perp();
         // Total force
         let total_f = elast_f + damp_f + frict_f;
 
@@ -129,7 +124,7 @@ fn contact_wall(actor: &mut impl Actor, item: &mut Item, offset: f32, normal: Ve
         intersect_circle_and_plane(*item.pos, item.shape.radius(), offset, normal)
     {
         item.body
-            .contact(actor, -0.1 * normal * area, barycenter, Vec2::ZERO);
+            .contact(actor, normal * area.sqrt(), barycenter, Vec2::ZERO);
     }
 }
 
@@ -164,21 +159,16 @@ impl World {
             let (left, other_items) = self.items.split_at_mut(i);
             let this = left.last_mut().unwrap();
             for other in other_items {
-                let rel_pos = *other.body.pos - *this.body.pos;
-                let dist = rel_pos.length();
-                let sum_radius = this.shape.radius() + other.shape.radius();
-                if dist < sum_radius {
-                    let dir = rel_pos.normalize_or_zero();
-                    let dev = (sum_radius - dist) / 2.0;
-                    let min_radius = f32::min(this.shape.radius(), other.shape.radius());
-                    if 2.0 * dev < min_radius {
-                        let poc = *this.pos + dir * (this.shape.radius() - dev);
-                        this.contact(actor, -dev * dir, poc, other.vel_at(poc));
-                        other.contact(actor, dev * dir, poc, this.vel_at(poc));
-                    } else {
-                        this.push(actor, -(min_radius / 2.0) * dir);
-                        other.push(actor, (min_radius / 2.0) * dir);
-                    }
+                if let Some((area, barycenter)) = intersect_circles(
+                    *this.pos,
+                    this.shape.radius(),
+                    *other.pos,
+                    other.shape.radius(),
+                ) {
+                    let dir = (*other.pos - *this.pos).normalize_or_zero();
+                    let def = area.sqrt();
+                    this.contact(actor, -def * dir, barycenter, other.vel_at(barycenter));
+                    other.contact(actor, def * dir, barycenter, this.vel_at(barycenter));
                 }
             }
         }

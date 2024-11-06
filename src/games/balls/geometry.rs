@@ -7,7 +7,7 @@ const EPS: f32 = 1e-4;
 ///
 /// Chord is defined via distance from circle center.
 pub fn circle_segment(radius: f32, dist: f32) -> (f32, f32) {
-    let cosine = dist / radius;
+    let cosine = (dist / radius).clamp(-1.0, 1.0);
     let sine = (1.0 - cosine.powi(2)).sqrt();
     let (area, barycenter) = if cosine.abs() < 1.0 - EPS {
         let area = cosine.acos() - cosine * sine;
@@ -32,9 +32,9 @@ pub fn intersect_circle_and_plane(
     offset: f32,
     normal: Vec2,
 ) -> Option<(f32, Vec2)> {
-    let dist = center.dot(normal) + offset;
-    if dist > -radius {
-        if dist < radius {
+    let dist = center.dot(normal) - offset;
+    if dist < radius {
+        if dist > -radius {
             let (area, barycenter) = circle_segment(radius, dist);
             Some((area, center - normal * barycenter))
         } else {
@@ -51,17 +51,17 @@ pub fn intersect_circles(ac: Vec2, ar: f32, bc: Vec2, br: f32) -> Option<(f32, V
     let vec = bc - ac;
     let dist = vec.length();
     if dist < ar + br {
-        let (minc, minp) = if ar < br { (ar, ac) } else { (br, bc) };
-        if dist > minc {
+        if dist > (ar - br).abs() {
             let dir = vec / dist;
             let ax = 0.5 * (dist + (ar.powi(2) - br.powi(2)) / dist);
             let bx = dist - ax;
             let (aa, ab) = circle_segment(ar, ax);
             let (ba, bb) = circle_segment(br, bx);
             let area = aa + ba;
-            Some((area, ac + dir * ((ab / aa + bb / ba) * area)))
+            Some((area, ((ac + dir * ab) * aa + (bc - dir * bb) * ba) / area))
         } else {
-            Some((PI * minc.powi(2), minp))
+            let (minr, minc) = if ar < br { (ar, ac) } else { (br, bc) };
+            Some((PI * minr.powi(2), minc))
         }
     } else {
         None

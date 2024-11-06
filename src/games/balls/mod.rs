@@ -250,7 +250,7 @@ pub async fn main() -> Result<(), Error> {
         noise: noisy_texture(&mut rng, 32, 32, Vec3::splat(0.75), Vec3::splat(0.25)),
     };
 
-    let scale = 1280.0;
+    let scale = 640.0;
     let mut viewport = Vec2::from(screen_size());
 
     let mut toy_box = World::new(viewport / scale);
@@ -302,7 +302,9 @@ pub async fn main() -> Result<(), Error> {
         }
 
         {
-            let dt = Duration::from_secs_f32(get_frame_time().min(0.04));
+            let dt = Duration::from_secs_f32(
+                get_frame_time().min(0.04) / if mode == DrawMode::Debug { 10.0 } else { 1.0 },
+            );
             Solver.solve_step(&mut toy_box, dt.as_secs_f32());
         }
 
