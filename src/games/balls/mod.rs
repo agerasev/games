@@ -191,7 +191,7 @@ fn sample_item(mut rng: impl Rng, box_size: Vec2, textures: &TextureStorage) -> 
     let radius: f32 = rng.sample(Uniform::new(0.1, 0.3));
     let mass = physics::MASF * radius;
     let eff_size = (box_size - Vec2::splat(radius)).max(Vec2::ZERO);
-    let shape = if rng.sample(Uniform::new(0.0, 1.0)) < 1.0 {
+    let shape = if rng.sample(Uniform::new(0.0, 1.0)) < 0.5 {
         Shape::Circle { radius }
     } else {
         Shape::Rectangle {
@@ -210,7 +210,7 @@ fn sample_item(mut rng: impl Rng, box_size: Vec2, textures: &TextureStorage) -> 
             rot: Var::new(Rot2::default()),
             asp: Var::default(),
         },
-        color: hsl_to_rgb(rng.sample(Uniform::new(0.0, 1.0)), 1.0, 0.75),
+        color: hsl_to_rgb(rng.sample(Uniform::new(0.0, 1.0)), 1.0, 0.5),
         texture: match &shape {
             Shape::Circle { .. } => textures.ball.clone(),
             Shape::Rectangle { .. } => textures.noise.clone(),
@@ -247,7 +247,7 @@ pub async fn main() -> Result<(), Error> {
 
     let textures = TextureStorage {
         ball: load_texture("ball.png").await?,
-        noise: noisy_texture(&mut rng, 32, 32, Vec3::splat(0.75), Vec3::splat(0.25)),
+        noise: { noisy_texture(&mut rng, 32, 32, Vec3::splat(0.75), Vec3::splat(0.25)) },
     };
 
     let scale = 640.0;

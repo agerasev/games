@@ -10,7 +10,7 @@ use macroquad::{
     window::{clear_background, next_frame},
 };
 use std::env;
-use yarik::{
+use yarik_games::{
     games, layout,
     text::{Text, TextAlign},
 };
