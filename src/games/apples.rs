@@ -2,7 +2,7 @@ use crate::text::{draw_text_aligned, TextAlign};
 use anyhow::Error;
 use macroquad::{
     color,
-    input::{get_keys_pressed, is_key_down, KeyCode},
+    input::{is_key_down, is_key_pressed, KeyCode},
     math::{Rect, Vec2},
     miniquad::window::screen_size,
     text::load_ttf_font,
@@ -78,6 +78,7 @@ pub async fn main() -> Result<(), Error> {
         ui.push_skin(&skin);
         ui.clear_input_focus();
     }
+    let mut number_font = Some(&font);
 
     let mut max_number = 10;
 
@@ -98,6 +99,13 @@ pub async fn main() -> Result<(), Error> {
         let scale = viewport.y / 10.0;
 
         {
+            if is_key_pressed(KeyCode::GraveAccent) {
+                number_font = match number_font {
+                    Some(_) => None,
+                    None => Some(&font),
+                };
+            }
+
             const NUM_KEYS: [[KeyCode; 2]; 10] = [
                 [KeyCode::Key0, KeyCode::Kp0],
                 [KeyCode::Key1, KeyCode::Kp1],
@@ -110,10 +118,9 @@ pub async fn main() -> Result<(), Error> {
                 [KeyCode::Key8, KeyCode::Kp8],
                 [KeyCode::Key9, KeyCode::Kp9],
             ];
-            let keys = get_keys_pressed();
             let mut key_num = None;
-            for (i, [k, kp]) in NUM_KEYS.iter().enumerate() {
-                if keys.contains(k) || keys.contains(kp) {
+            for (i, [k, kp]) in NUM_KEYS.iter().copied().enumerate() {
+                if is_key_pressed(k) || is_key_pressed(kp) {
                     key_num = Some(i as i64);
                 }
             }
@@ -132,26 +139,26 @@ pub async fn main() -> Result<(), Error> {
             }
 
             let mut add = 0;
-            if keys.contains(&KeyCode::Minus) || keys.contains(&KeyCode::KpSubtract) {
+            if is_key_pressed(KeyCode::Minus) || is_key_pressed(KeyCode::KpSubtract) {
                 add -= 1;
                 apply = true;
             }
-            if keys.contains(&KeyCode::Equal) || keys.contains(&KeyCode::KpAdd) {
+            if is_key_pressed(KeyCode::Equal) || is_key_pressed(KeyCode::KpAdd) {
                 add += 1;
                 apply = true;
             }
-            if keys.contains(&KeyCode::PageDown) {
+            if is_key_pressed(KeyCode::PageDown) {
                 add -= 10;
                 apply = true;
             }
-            if keys.contains(&KeyCode::PageUp) {
+            if is_key_pressed(KeyCode::PageUp) {
                 add += 10;
                 apply = true;
             }
-            if keys.contains(&KeyCode::Enter) || keys.contains(&KeyCode::Space) {
+            if is_key_pressed(KeyCode::Enter) || is_key_pressed(KeyCode::Space) {
                 apply = true;
             }
-            if keys.contains(&KeyCode::Backspace) || keys.contains(&KeyCode::Delete) {
+            if is_key_pressed(KeyCode::Backspace) || is_key_pressed(KeyCode::Delete) {
                 input.clear();
             }
 
@@ -189,7 +196,7 @@ pub async fn main() -> Result<(), Error> {
             viewport.x / 2.0,
             viewport.y / 2.0,
             TextAlign::Center,
-            Some(&font),
+            number_font,
             2.0 * scale,
             color::WHITE,
         );
@@ -206,7 +213,7 @@ pub async fn main() -> Result<(), Error> {
                 text_pos.x,
                 text_pos.y - 2.0 * scale,
                 TextAlign::Center,
-                Some(&font),
+                number_font,
                 0.25 * scale,
                 color::DARKGRAY,
             );
@@ -216,7 +223,7 @@ pub async fn main() -> Result<(), Error> {
             text_pos.x,
             text_pos.y,
             TextAlign::Center,
-            Some(&font),
+            number_font,
             2.0 * scale,
             color::WHITE,
         );
