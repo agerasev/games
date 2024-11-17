@@ -240,7 +240,7 @@ struct TextureStorage {
 }
 
 pub async fn main() -> Result<(), Error> {
-    let mut rng = SmallRng::from_entropy();
+    let mut rng = SmallRng::seed_from_u64(0xdeadbeef);
 
     let font = load_default_font().await?;
 

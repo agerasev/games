@@ -1,6 +1,5 @@
 use anyhow::Error;
 use macroquad::{
-    camera::{set_camera, set_default_camera, Camera2D},
     color,
     file::set_pc_assets_folder,
     input::{is_mouse_button_pressed, mouse_position, MouseButton},
@@ -11,18 +10,12 @@ use macroquad::{
 };
 use std::env;
 use yarik_games::{
+    compat::reset_camera,
     games, layout,
     text::{load_default_font, Text, TextAlign},
 };
 
-fn reset_camera() {
-    // Workaround to reset viewport
-    set_camera(&Camera2D::default());
-
-    set_default_camera();
-}
-
-#[macroquad::main("Yarik")]
+#[macroquad::main("Yarik Games")]
 async fn main() -> Result<(), Error> {
     set_pc_assets_folder("assets");
 

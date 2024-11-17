@@ -82,7 +82,7 @@ pub async fn main() -> Result<(), Error> {
 
     let mut max_number = 10;
 
-    let mut rng = SmallRng::from_entropy();
+    let mut rng = SmallRng::seed_from_u64(0xdeadbeef);
     let mut number: i64 = rng.sample(Uniform::new_inclusive(1, max_number));
     let mut item = &items[0];
 

@@ -67,12 +67,12 @@ pub async fn main() -> Result<(), Error> {
     .await?;
     let font = load_default_font().await?;
 
-    let mut rng = SmallRng::from_entropy();
+    let mut rng = SmallRng::seed_from_u64(0xdeadbeef);
 
     loop {
         let map_size = Vec2::from([40.0, 30.0]);
         let mean_items: f32 = 16.0;
-        let num_items = rng.sample(Poisson::new(mean_items)?).round() as usize;
+        let num_items = rng.sample(Poisson::new(mean_items).unwrap()).round() as usize;
 
         let mut player = Player {
             base: Item {
