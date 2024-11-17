@@ -2,18 +2,19 @@ mod objects;
 
 use self::objects::{Character, Object, Personality};
 use anyhow::Error;
+use glam::Vec2;
 use itertools::Itertools;
 use macroquad::{
     camera::{set_camera, set_default_camera, Camera2D},
     color,
     input::{is_key_down, mouse_wheel, KeyCode},
-    math::{Rect, Vec2},
+    math::Rect,
     miniquad::window::screen_size,
     texture::{set_default_filter_mode, FilterMode},
-    time::get_frame_time,
+    time::{get_frame_time, get_time},
     window::{clear_background, next_frame},
 };
-use objects::{Tree, TreeSpecies};
+use objects::{Action, Orientation, Tree, TreeSpecies};
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 use rand_distr::{Normal, Poisson, Uniform};
 use std::{future::Future, pin::Pin, time::Duration};
@@ -94,20 +95,38 @@ pub async fn main() -> Result<(), Error> {
     Ok(())
 }
 
-pub struct Game {}
+pub struct Game {
+    man: Personality,
+}
 
 impl Game {
     pub async fn new() -> Result<Self, Error> {
-        Ok(Self {})
+        set_default_filter_mode(FilterMode::Nearest);
+        Ok(Self {
+            man: Personality::new("man.png", "man.json").await?,
+        })
     }
 }
 
 impl crate::Game for Game {
     fn name(&self) -> String {
-        "Бег по лесу".to_owned()
+        "Бег".to_owned()
     }
 
-    fn draw_preview(&self, _rect: Rect) {}
+    fn draw_preview(&self, rect: Rect) {
+        let person_size = (rect.size() / Personality::SIZE).min_element() * Personality::SIZE;
+        let offset = rect.point() + 0.5 * (rect.size() - person_size);
+        self.man.draw(
+            offset,
+            person_size,
+            (Orientation::Side, false),
+            Action::Run,
+            (
+                Duration::from_millis(1200),
+                Duration::from_secs_f64(get_time()),
+            ),
+        )
+    }
 
     fn launch(&self) -> Pin<Box<dyn Future<Output = Result<(), Error>>>> {
         Box::pin(main())
