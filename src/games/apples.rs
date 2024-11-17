@@ -1,9 +1,10 @@
 use crate::text::{draw_text_aligned, load_default_font, TextAlign};
 use anyhow::Error;
+use glam::Vec2;
 use macroquad::{
     color,
     input::{is_key_down, is_key_pressed, KeyCode},
-    math::{Rect, Vec2},
+    math::Rect,
     miniquad::window::screen_size,
     texture::{
         draw_texture_ex, load_texture, set_default_filter_mode, DrawTextureParams, FilterMode,

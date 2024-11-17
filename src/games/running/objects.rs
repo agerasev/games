@@ -81,10 +81,17 @@ impl<'a> Object for Tree<'a> {
 
 #[repr(usize)]
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-enum Orientation {
+pub enum Orientation {
     Front = 0,
     Back = 1,
     Side = 2,
+}
+
+#[repr(usize)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Action {
+    Stand = 0,
+    Run = 1,
 }
 
 #[derive(Clone, Debug)]
@@ -126,11 +133,37 @@ pub struct Personality {
 }
 
 impl Personality {
+    pub const SIZE: Vec2 = Vec2::new(1.0, 2.0);
+    pub const CENTER: Vec2 = Vec2::new(0.5, 1.8);
+
     pub async fn new(texture_path: &str, animations_path: &str) -> Result<Self, Error> {
         Ok(Self {
             texture: load_texture(texture_path).await?,
             animations: PersonAnimations::load(animations_path).await?,
         })
+    }
+
+    pub fn draw(
+        &self,
+        pos: Vec2,
+        size: Vec2,
+        (orientation, flip): (Orientation, bool),
+        action: Action,
+        (animation_period, action_duration): (Duration, Duration),
+    ) {
+        let head_torso = &self.animations.head_torso[orientation as usize];
+        let hands_legs = match action {
+            Action::Stand => &self.animations.hands_legs_stand[orientation as usize],
+            Action::Run => &self.animations.hands_legs_run[orientation as usize],
+        };
+
+        let head_torso =
+            Animation::new(&self.texture, head_torso, animation_period).flip(flip, false);
+        let hands_legs =
+            Animation::new(&self.texture, hands_legs, animation_period).flip(flip, false);
+
+        head_torso.draw(pos, size, action_duration);
+        hands_legs.draw(pos, size, action_duration);
     }
 }
 
@@ -144,8 +177,6 @@ pub struct Character<'a> {
 }
 
 impl<'a> Character<'a> {
-    const SIZE: Vec2 = Vec2::new(1.0, 2.0);
-    const CENTER: Vec2 = Vec2::new(0.5, 1.8);
     const SPEED: f32 = 2.7778;
     const ANIMATION_PERIOD: Duration = Duration::from_millis(800);
 
@@ -184,21 +215,21 @@ impl<'a> Object for Character<'a> {
             Orientation::Back
         };
         let flip = self.direction.x < 0.0;
-        let head_torso = &self.look.animations.head_torso[orientation as usize];
-        let hands_legs = if self.velocity == Vec2::ZERO {
-            &self.look.animations.hands_legs_stand[orientation as usize]
+        let action = if self.velocity == Vec2::ZERO {
+            Action::Stand
         } else {
-            &self.look.animations.hands_legs_run[orientation as usize]
+            Action::Run
         };
 
-        let head_torso = Animation::new(&self.look.texture, head_torso, Self::ANIMATION_PERIOD)
-            .flip(flip, false);
-        let hands_legs = Animation::new(&self.look.texture, hands_legs, Self::ANIMATION_PERIOD)
-            .flip(flip, false);
+        let size = Personality::SIZE;
+        let pos = (self.position - Personality::CENTER) * Vec2::new(1.0, TILT);
 
-        let size = Self::SIZE;
-        let pos = (self.position - Self::CENTER) * Vec2::new(1.0, TILT);
-        head_torso.draw(pos, size, self.action_duration);
-        hands_legs.draw(pos, size, self.action_duration);
+        self.look.draw(
+            pos,
+            size,
+            (orientation, flip),
+            action,
+            (Self::ANIMATION_PERIOD, self.action_duration),
+        )
     }
 }

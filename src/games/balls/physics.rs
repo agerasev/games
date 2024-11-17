@@ -65,7 +65,7 @@ impl Actor for DerivActor {
 }
 
 /// Rigid body
-#[derive(Clone, Debug)]
+#[derive(Clone, Default, Debug)]
 pub struct Body {
     pub mass: f32,
     pub pos: Var<Vec2>,

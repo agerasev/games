@@ -1,5 +1,6 @@
 use anyhow::Error;
 use macroquad::{
+    camera::{set_camera, set_default_camera, Camera2D},
     color,
     file::set_pc_assets_folder,
     input::{is_mouse_button_pressed, mouse_position, MouseButton},
@@ -13,6 +14,13 @@ use yarik_games::{
     games, layout,
     text::{load_default_font, Text, TextAlign},
 };
+
+fn reset_camera() {
+    // Workaround to reset viewport
+    set_camera(&Camera2D::default());
+
+    set_default_camera();
+}
 
 #[macroquad::main("Yarik")]
 async fn main() -> Result<(), Error> {
@@ -38,18 +46,23 @@ async fn main() -> Result<(), Error> {
         }
     }
     loop {
-        let boxes = layout::grid(screen_size(), games.len());
+        let screen = Vec2::from(screen_size());
+        let boxes = layout::grid((screen.x, screen.y), games.len());
+
         clear_background(color::BLACK);
-        for ((_, game), rect) in games.iter().zip(boxes.iter().flatten()) {
-            game.draw_preview({
+        for ((_, game), &rect) in games.iter().zip(boxes.iter().flatten()) {
+            {
                 let size = rect.size().min_element() / 2.0;
-                Rect::new(
+                let rect = Rect::new(
                     rect.center().x - size / 2.0,
                     rect.center().y - size / 2.0,
                     size,
                     size,
-                )
-            });
+                );
+                game.draw_preview(rect);
+                reset_camera();
+            }
+
             let text = Text::new(
                 game.name(),
                 Some(font.clone()),
@@ -65,6 +78,7 @@ async fn main() -> Result<(), Error> {
                 if is_mouse_button_pressed(MouseButton::Left) {
                     next_frame().await;
                     game.launch().await?;
+                    reset_camera();
                     continue;
                 }
 

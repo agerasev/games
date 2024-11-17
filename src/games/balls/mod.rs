@@ -20,8 +20,8 @@ use macroquad::{
     math::Rect,
     miniquad::window::screen_size,
     shapes::{
-        draw_circle, draw_circle_lines, draw_rectangle_lines, draw_rectangle_lines_ex,
-        draw_triangle, DrawRectangleParams,
+        draw_circle_lines, draw_rectangle_lines, draw_rectangle_lines_ex, draw_triangle,
+        DrawRectangleParams,
     },
     texture::{draw_texture_ex, load_texture, DrawTextureParams, Texture2D},
     time::get_frame_time,
@@ -341,11 +341,15 @@ pub async fn main() -> Result<(), Error> {
     Ok(())
 }
 
-pub struct Game {}
+pub struct Game {
+    ball: Texture2D,
+}
 
 impl Game {
     pub async fn new() -> Result<Self, Error> {
-        Ok(Self {})
+        Ok(Self {
+            ball: load_texture("ball.png").await?,
+        })
     }
 }
 
@@ -355,18 +359,32 @@ impl crate::Game for Game {
     }
 
     fn draw_preview(&self, rect: Rect) {
+        let pos = rect.point();
         let size = rect.size();
 
-        let rad = 0.5 * rect.size().min_element();
-        draw_circle(
-            rect.x + size.x - rad,
-            rect.y + size.y - rad,
-            rad,
+        let rad = 0.5 * size.min_element();
+        draw_texture_ex(
+            &self.ball,
+            pos.x + size.x - 2.0 * rad,
+            pos.y + size.y - 2.0 * rad,
             color::BLUE,
+            DrawTextureParams {
+                dest_size: Some(Vec2::splat(2.0 * rad)),
+                ..Default::default()
+            },
         );
 
-        let rad = 0.25 * rect.size().min_element();
-        draw_circle(rect.x + rad, rect.y + size.y - rad, rad, color::GREEN);
+        let rad = 0.25 * size.min_element();
+        draw_texture_ex(
+            &self.ball,
+            pos.x,
+            pos.y + size.y - 2.0 * rad,
+            color::GREEN,
+            DrawTextureParams {
+                dest_size: Some(Vec2::splat(2.0 * rad)),
+                ..Default::default()
+            },
+        );
     }
 
     fn launch(&self) -> Pin<Box<dyn Future<Output = Result<(), Error>>>> {

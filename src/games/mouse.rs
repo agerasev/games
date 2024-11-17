@@ -3,11 +3,12 @@ use anyhow::Error;
 use core::f32;
 use derive_more::derive::{Deref, DerefMut};
 use futures::{future::try_join_all, TryFutureExt};
+use glam::Vec2;
 use macroquad::{
     camera::{set_camera, set_default_camera, Camera2D},
     color,
     input::{is_key_down, KeyCode},
-    math::{Rect, Vec2},
+    math::Rect,
     miniquad::window::screen_size,
     shapes::draw_rectangle,
     texture::{
