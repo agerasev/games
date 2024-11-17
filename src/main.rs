@@ -6,13 +6,12 @@ use macroquad::{
     math::{Rect, Vec2},
     miniquad::window::{screen_size, set_window_size},
     shapes::draw_rectangle_lines,
-    text::load_ttf_font,
     window::{clear_background, next_frame},
 };
 use std::env;
 use yarik_games::{
     games, layout,
-    text::{Text, TextAlign},
+    text::{load_default_font, Text, TextAlign},
 };
 
 #[macroquad::main("Yarik")]
@@ -20,7 +19,7 @@ async fn main() -> Result<(), Error> {
     set_pc_assets_folder("assets");
 
     let games = games::all().await?;
-    let font = load_ttf_font("default.ttf").await?;
+    let font = load_default_font().await?;
 
     set_window_size(1280, 720);
 

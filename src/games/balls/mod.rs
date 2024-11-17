@@ -4,7 +4,7 @@ mod physics;
 use crate::{
     algebra::Rot2,
     numerical::{Solver, Var},
-    text::{draw_text_aligned, TextAlign},
+    text::{draw_text_aligned, load_default_font, TextAlign},
     texture::noisy_texture,
 };
 use anyhow::Error;
@@ -23,7 +23,6 @@ use macroquad::{
         draw_circle, draw_circle_lines, draw_rectangle_lines, draw_rectangle_lines_ex,
         draw_triangle, DrawRectangleParams,
     },
-    text::load_ttf_font,
     texture::{draw_texture_ex, load_texture, DrawTextureParams, Texture2D},
     time::get_frame_time,
     window::{clear_background, next_frame},
@@ -243,7 +242,7 @@ struct TextureStorage {
 pub async fn main() -> Result<(), Error> {
     let mut rng = SmallRng::from_entropy();
 
-    let font = load_ttf_font("default.ttf").await?;
+    let font = load_default_font().await?;
 
     let textures = TextureStorage {
         ball: load_texture("ball.png").await?,

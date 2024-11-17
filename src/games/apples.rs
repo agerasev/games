@@ -1,11 +1,10 @@
-use crate::text::{draw_text_aligned, TextAlign};
+use crate::text::{draw_text_aligned, load_default_font, TextAlign};
 use anyhow::Error;
 use macroquad::{
     color,
     input::{is_key_down, is_key_pressed, KeyCode},
     math::{Rect, Vec2},
     miniquad::window::screen_size,
-    text::load_ttf_font,
     texture::{
         draw_texture_ex, load_texture, set_default_filter_mode, DrawTextureParams, FilterMode,
         Texture2D,
@@ -57,7 +56,7 @@ pub async fn main() -> Result<(), Error> {
         },
     ];
 
-    let font = load_ttf_font("default.ttf").await?;
+    let font = load_default_font().await?;
     {
         let mut ui = root_ui();
         let style = ui

@@ -1,6 +1,10 @@
+use anyhow::Result;
 use macroquad::{
     color::Color,
-    text::{camera_font_scale, draw_text_ex, measure_text, Font, TextDimensions, TextParams},
+    text::{
+        camera_font_scale, draw_text_ex, load_ttf_font, measure_text, Font, TextDimensions,
+        TextParams,
+    },
 };
 
 #[derive(Clone, Debug)]
@@ -63,4 +67,8 @@ pub fn draw_text_aligned(
 ) {
     // TODO: Remove unnecessary text and font copying
     Text::new(text, font.cloned(), size).draw(x, y, align, color)
+}
+
+pub async fn load_default_font() -> Result<Font> {
+    Ok(load_ttf_font("free-sans-bold.ttf").await?)
 }

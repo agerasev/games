@@ -1,4 +1,4 @@
-use crate::text::{draw_text_aligned, TextAlign};
+use crate::text::{draw_text_aligned, load_default_font, TextAlign};
 use anyhow::Error;
 use core::f32;
 use derive_more::derive::{Deref, DerefMut};
@@ -10,7 +10,6 @@ use macroquad::{
     math::{Rect, Vec2},
     miniquad::window::screen_size,
     shapes::draw_rectangle,
-    text::load_ttf_font,
     texture::{
         draw_texture_ex, load_texture, set_default_filter_mode, DrawTextureParams, FilterMode,
         Texture2D,
@@ -65,7 +64,7 @@ pub async fn main() -> Result<(), Error> {
             .map(|(path, prob)| load_texture(path).map_ok(move |t| (t, prob))),
     )
     .await?;
-    let font = load_ttf_font("default.ttf").await?;
+    let font = load_default_font().await?;
 
     let mut rng = SmallRng::from_entropy();
 
