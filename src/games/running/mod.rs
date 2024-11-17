@@ -1,5 +1,7 @@
 mod objects;
 
+use crate::compat::mouse_wheel_clamped;
+
 use self::objects::{Character, Object, Personality};
 use anyhow::Error;
 use glam::Vec2;
@@ -7,7 +9,7 @@ use itertools::Itertools;
 use macroquad::{
     camera::{set_camera, set_default_camera, Camera2D},
     color,
-    input::{is_key_down, mouse_wheel, KeyCode},
+    input::{is_key_down, KeyCode},
     math::Rect,
     miniquad::window::screen_size,
     texture::{set_default_filter_mode, FilterMode},
@@ -26,14 +28,14 @@ pub async fn main() -> Result<(), Error> {
     let tree = TreeSpecies::load("tree.png", "tree.json").await?;
     let man = Personality::new("man.png", "man.json").await?;
 
-    let mut rng = SmallRng::from_entropy();
-    let mut static_objects = (0..rng.sample(Poisson::new(64_f32)?).round() as usize)
+    let mut rng = SmallRng::seed_from_u64(0xdeadbeef);
+    let mut static_objects = (0..rng.sample(Poisson::new(64_f32).unwrap()).round() as usize)
         .map(|_| {
             Ok(Box::new(Tree {
                 species: &tree,
                 pos: Vec2::new(
-                    rng.sample(Normal::new(0.0, 10.0)?),
-                    rng.sample(Normal::new(0.0, 10.0)?),
+                    rng.sample(Normal::new(0.0, 10.0).unwrap()),
+                    rng.sample(Normal::new(0.0, 10.0).unwrap()),
                 ),
                 growth: rng.sample(Uniform::new(1.0, 3.0)),
             }) as Box<dyn Object>)
@@ -62,7 +64,7 @@ pub async fn main() -> Result<(), Error> {
             if is_key_down(KeyCode::Right) || is_key_down(KeyCode::D) {
                 motion += Vec2::from([1.0, 0.0]);
             }
-            zoom *= (0.2 * mouse_wheel().1).exp();
+            zoom *= (0.2 * mouse_wheel_clamped().1).exp();
 
             player.step(motion, dt);
         }
