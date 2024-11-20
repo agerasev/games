@@ -112,7 +112,7 @@ impl Game {
 
 impl crate::Game for Game {
     fn name(&self) -> String {
-        "Бег".to_owned()
+        "Бег по лесу".to_owned()
     }
 
     fn draw_preview(&self, rect: Rect) {
