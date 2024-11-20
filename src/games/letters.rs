@@ -9,7 +9,7 @@ use macroquad::{
     input::{is_key_down, is_key_pressed, KeyCode},
     math::Rect,
     miniquad::window::screen_size,
-    text::Font,
+    text::{load_ttf_font, Font},
     window::{clear_background, next_frame},
 };
 use std::{future::Future, pin::Pin};
@@ -53,9 +53,13 @@ impl Letter {
 }
 
 pub async fn main() -> Result<(), Error> {
-    let font = load_default_font().await?;
+    let fonts = [
+        load_ttf_font("free-sans-bold.ttf").await?,
+        load_ttf_font("free-serif-bold.ttf").await?,
+    ];
 
     let mut alphabet = &RUSSIAN[..];
+    let mut font_index = 0;
 
     while !is_key_down(KeyCode::Escape) {
         if is_key_pressed(KeyCode::Key1) {
@@ -67,13 +71,17 @@ pub async fn main() -> Result<(), Error> {
         } else if is_key_pressed(KeyCode::Key0) {
             alphabet = &NUMBERS[..];
         }
+        if is_key_pressed(KeyCode::GraveAccent) {
+            font_index = (font_index + 1) % fonts.len();
+        }
 
         clear_background(color::BLACK);
 
+        let font = &fonts[font_index];
         let mut i = 0;
         for line in grid(screen_size(), alphabet.len(), 2.0) {
             for rect in line {
-                alphabet[i].draw(rect, &font);
+                alphabet[i].draw(rect, font);
                 i += 1;
             }
         }
