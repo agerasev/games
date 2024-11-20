@@ -34,7 +34,7 @@ impl Text {
         dims
     }
 
-    pub fn draw(&self, x: f32, y: f32, align: TextAlign, color: Color) {
+    pub fn draw_aligned(&self, x: f32, y: f32, align: TextAlign, color: Color) {
         let (font_size, font_scale, font_scale_aspect) = camera_font_scale(self.size);
         let TextDimensions { mut width, .. } =
             measure_text(&self.value, self.font.as_ref(), font_size, font_scale);
@@ -66,7 +66,7 @@ pub fn draw_text_aligned(
     color: Color,
 ) {
     // TODO: Remove unnecessary text and font copying
-    Text::new(text, font.cloned(), size).draw(x, y, align, color)
+    Text::new(text, font.cloned(), size).draw_aligned(x, y, align, color)
 }
 
 pub async fn load_default_font() -> Result<Font> {

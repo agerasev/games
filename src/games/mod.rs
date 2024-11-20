@@ -4,6 +4,7 @@ use anyhow::Error;
 pub mod apples;
 pub mod balls;
 pub mod drive;
+pub mod letters;
 pub mod mouse;
 pub mod running;
 
@@ -12,6 +13,10 @@ pub async fn all() -> Result<Vec<(String, Box<dyn Game>)>, Error> {
         (
             "apples".to_owned(),
             Box::new(self::apples::Game::new().await?),
+        ),
+        (
+            "letters".to_owned(),
+            Box::new(self::letters::Game::new().await?),
         ),
         (
             "mouse".to_owned(),

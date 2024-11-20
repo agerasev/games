@@ -25,13 +25,15 @@ impl Iterator for SplitIter {
 struct GridSizeIter {
     x_iter: Peekable<SplitIter>,
     y_iter: Peekable<SplitIter>,
+    aspect: f32,
 }
 
 impl GridSizeIter {
-    fn new(w: f32, h: f32) -> Self {
+    fn new(w: f32, h: f32, aspect: f32) -> Self {
         Self {
             x_iter: SplitIter::new(w).peekable(),
             y_iter: SplitIter::new(h).peekable(),
+            aspect,
         }
     }
 }
@@ -41,7 +43,7 @@ impl Iterator for GridSizeIter {
     fn next(&mut self) -> Option<Self::Item> {
         let (nx, sx) = *self.x_iter.peek().unwrap();
         let (ny, sy) = *self.y_iter.peek().unwrap();
-        if sx >= sy {
+        if sx >= sy * self.aspect {
             self.x_iter.next().unwrap();
         } else {
             self.y_iter.next().unwrap();
@@ -50,9 +52,9 @@ impl Iterator for GridSizeIter {
     }
 }
 
-pub fn grid(size: (f32, f32), n: usize) -> Vec<Vec<Rect>> {
+pub fn grid(size: (f32, f32), n: usize, aspect: f32) -> Vec<Vec<Rect>> {
     let (w, h) = size;
-    let mut iter = GridSizeIter::new(w, h);
+    let mut iter = GridSizeIter::new(w, h, aspect);
     let ((nx, ny), (sx, sy)) = loop {
         let item = iter.next().unwrap();
         let (nx, ny) = item.0;

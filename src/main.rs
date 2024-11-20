@@ -40,7 +40,7 @@ async fn main() -> Result<(), Error> {
     }
     loop {
         let screen = Vec2::from(screen_size());
-        let boxes = layout::grid((screen.x, screen.y), games.len());
+        let boxes = layout::grid((screen.x, screen.y), games.len(), 1.0);
 
         clear_background(color::BLACK);
         for ((_, game), &rect) in games.iter().zip(boxes.iter().flatten()) {
@@ -61,7 +61,7 @@ async fn main() -> Result<(), Error> {
                 Some(font.clone()),
                 rect.size().min_element() / 10.0,
             );
-            text.draw(
+            text.draw_aligned(
                 rect.center().x,
                 rect.bottom() - text.size / 2.0,
                 TextAlign::Center,
