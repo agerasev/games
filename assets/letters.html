@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        @font-face {
+            font-family: "free-sans-bold";
+            src: url("free-sans-bold.ttf");
+        }
+
+        @font-face {
+            font-family: "free-serif-bold";
+            src: url("free-serif-bold.ttf");
+        }
+
+        body {
+            padding: 0;
+            margin: 0;
+        }
+
+        #screen {
+            position: absolute;
+            width: 96%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            grid-template-rows: repeat(auto-fill, 1fr);
+            grid-row-gap: 1%;
+            grid-column-gap: 1%;
+        }
+
+        .letter {
+            margin: auto;
+            font-family: "free-serif-bold";
+            font-size: 10vh;
+            display: inline-block;
+        }
+
+        #controls {
+            position: absolute;
+            left: 96%;
+            width: 4%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        .to_button {
+            width: 90%;
+            height: 3vh;
+            padding: 0;
+            margin: 0.2vh 5%;
+            text-align: center;
+            font-size: 2vh;
+        }
+
+        .flag {
+            height: 100%;
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="screen"></div>
+    <div id="controls">
+        <button class="to_button" onclick="to_en()"><img src="flags/us.png" class="flag"></button>
+        <button class="to_button" onclick="to_ru()"><img src="flags/ru.png" class="flag"></button>
+        <button class="to_button" onclick="to_gr()"><img src="flags/gr.png" class="flag"></button>
+        <button class="to_button" onclick="to_num()">123</button>
+    </div>
+
+    <script>
+        const make_letter = (char, classes) => {
+            classes.push("letter");
+            let text;
+            if (char.toUpperCase() != char.toLowerCase()) {
+                text = `${char.toUpperCase()}&nbsp;${char.toLowerCase()}`;
+            } else {
+                text = char;
+            }
+            return `<div class='${classes.join(" ")}'>${text}</div>`;
+        };
+        const c = (char) => make_letter(char, ["consonant"]);
+        const v = (char) => make_letter(char, ["vowel"]);
+        const o = (char) => make_letter(char, []);
+
+        const RUSSIAN = [
+            v('А'),
+            c('Б'),
+            c('В'),
+            c('Г'),
+            c('Д'),
+            v('Е'),
+            v('Ё'),
+            c('Ж'),
+            c('З'),
+            v('И'),
+            c('Й'),
+            c('К'),
+            c('Л'),
+            c('М'),
+            c('Н'),
+            v('О'),
+            c('П'),
+            c('Р'),
+            c('С'),
+            c('Т'),
+            v('У'),
+            c('Ф'),
+            c('Х'),
+            c('Ц'),
+            c('Ч'),
+            c('Ш'),
+            c('Щ'),
+            o('Ъ'),
+            v('Ы'),
+            o('Ь'),
+            v('Э'),
+            v('Ю'),
+            v('Я'),
+        ].join("");
+
+        const ENGLISH = [
+            v('A'),
+            c('B'),
+            c('C'),
+            c('D'),
+            v('E'),
+            c('F'),
+            c('J'),
+            c('H'),
+            v('I'),
+            c('J'),
+            c('K'),
+            c('L'),
+            c('M'),
+            c('N'),
+            v('O'),
+            c('P'),
+            c('Q'),
+            c('R'),
+            c('S'),
+            c('T'),
+            v('U'),
+            c('V'),
+            c('W'),
+            c('X'),
+            c('Y'),
+            c('Z'),
+        ].join("");
+
+        const GREEK = [
+            v('Α'),
+            c('Β'),
+            c('Γ'),
+            c('Δ'),
+            v('Ε'),
+            c('Ζ'),
+            v('Η'),
+            c('Θ'),
+            v('Ι'),
+            c('Κ'),
+            c('Λ'),
+            c('Μ'),
+            c('Ν'),
+            c('Ξ'),
+            v('Ο'),
+            c('Π'),
+            c('Ρ'),
+            c('Σ'),
+            c('Τ'),
+            v('Υ'),
+            c('Φ'),
+            c('Χ'),
+            c('Ψ'),
+            v('Ω'),
+        ].join("");
+
+        const NUMBERS = [
+            o('0'),
+            o('1'),
+            o('2'),
+            o('3'),
+            o('4'),
+            o('5'),
+            o('6'),
+            o('7'),
+            o('8'),
+            o('9'),
+        ].join("");
+
+        const set_screen = (text) => {
+            const screen = document.getElementById("screen");
+            screen.innerHTML = text;
+        };
+
+        const to_en = () => set_screen(ENGLISH);
+        const to_ru = () => set_screen(RUSSIAN);
+        const to_gr = () => set_screen(GREEK);
+        const to_num = () => set_screen(NUMBERS);
+
+        window.onload = () => {
+            to_ru();
+        };
+    </script>
+</body>
+
+</html>

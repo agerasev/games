@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        #image {
+            position: absolute;
+            top: 0%;
+            width: 100%;
+            height: 50%;
+            margin: 0;
+            padding: 0;
+            text-align: center;
+            align-content: center;
+        }
+
+        .image {
+            height: 32vh;
+        }
+
+        #input {
+            position: fixed;
+            top: 50%;
+            width: 50%;
+            left: 25%;
+            font-size: 8vh;
+            text-align: left;
+        }
+
+        #list {
+            position: fixed;
+            top: 62%;
+            width: 50%;
+            left: 25%;
+            font-family: sans-serif;
+            font-size: 2vh;
+            text-align: left;
+        }
+    </style>
+    <script src="words.js" charset="UTF-8"></script>
+</head>
+
+<body>
+    <div id="image"></div>
+    <input id="input" type="text" oninput="display_image(this.value)" autofocus="true">
+    <div id="list"></div>
+
+    <script>
+        const MAX_LIST_SIZE = 16;
+
+        const text_to_name = (text) => {
+            let nums = [];
+            for (const char of Array.from(text)) {
+                nums.push(char.codePointAt(0).toString(16));
+            }
+            console.log(nums);
+            const name = nums.join("-");
+            return name;
+        };
+
+        const highlight = (text, start, len) => {
+            return `${text.slice(0, start)}<b>${text.slice(start, start + len)}</b>${text.slice(start + len, text.length)}`
+        };
+
+        const display_image = (query_) => {
+            const query = query_.trim().toLowerCase();
+
+            let images = [];
+            let matches = [];
+            if (query.length !== 0) {
+                for (const [image, words] of Object.entries(WORDS)) {
+                    for (const word_ of words) {
+                        const word = word_.toLowerCase();
+                        if (query == word) {
+                            images.push(image);
+                        }
+                        const index = word.indexOf(query);
+                        if (index !== -1) {
+                            matches.push({ i: index, len: word.length, img: image, word: word_ });
+                        }
+                    }
+                }
+            }
+            let image_names = []
+            for (const image of images) {
+                image_names.push(text_to_name(image));
+            }
+            document.getElementById("image").innerHTML = image_names.map((path) => `<img src="emoji/${path}.svg" class="image">`).join("");
+
+            matches.sort((a, b) => a.i != b.i ? a.i - b.i : (a.len != b.len ? a.len - b.len : a.word.localeCompare(b.word)));
+            matches = matches.slice(0, Math.min(MAX_LIST_SIZE, matches.length))
+            matches = matches.map((a) => `<div><span class="emoji">${a.img}</span>&nbsp;${highlight(a.word, a.i, query.length)}<div>`);
+            document.getElementById("list").innerHTML = matches.join("");
+        };
+    </script>
+</body>
+
+</html>
