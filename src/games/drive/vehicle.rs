@@ -1,15 +1,15 @@
 use super::terrain::Terrain;
-use crate::{
-    algebra::{Rot2, Rot3},
-    model::TransformStack,
-    numerical::{Var, Visitor},
-    physics::{angular_to_linear3, torque3},
-};
+use crate::model::TransformStack;
 use macroquad::{
     math::{Affine3A, Quat, Vec2, Vec3, Vec4},
     models::{draw_mesh, Mesh},
     texture::Texture2D,
     ui::Vertex,
+};
+use metaphysics::{
+    algebra::{Rot2, Rot3},
+    numerical::{Var, Visitor},
+    physics::{angular_to_linear3, torque3},
 };
 use serde::Deserialize;
 use std::{f32::consts::PI, rc::Rc};

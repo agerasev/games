@@ -1,12 +1,9 @@
-pub mod algebra;
 pub mod animation;
 pub mod compat;
 pub mod games;
 pub mod geometry;
 pub mod layout;
 pub mod model;
-pub mod numerical;
-pub mod physics;
 pub mod text;
 pub mod texture;
 

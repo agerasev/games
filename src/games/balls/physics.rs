@@ -2,12 +2,12 @@ use super::{
     geometry::{intersect_circle_and_plane, intersect_circles},
     Item, World,
 };
-use crate::{
+use glam::Vec2;
+use metaphysics::{
     algebra::Rot2,
     numerical::{System, Var, Visitor},
     physics::{angular_to_linear2, torque2},
 };
-use macroquad::math::Vec2;
 
 /// Mass factor
 pub const MASF: f32 = 1.0;

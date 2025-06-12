@@ -2,8 +2,6 @@ mod geometry;
 mod physics;
 
 use crate::{
-    algebra::Rot2,
-    numerical::{Solver, Var},
     text::{draw_text_aligned, load_default_font, TextAlign},
     texture::noisy_texture,
 };
@@ -26,6 +24,10 @@ use macroquad::{
     texture::{draw_texture_ex, load_texture, DrawTextureParams, Texture2D},
     time::get_frame_time,
     window::{clear_background, next_frame},
+};
+use metaphysics::{
+    algebra::Rot2,
+    numerical::{Solver, Var},
 };
 use physics::{Actor, Body, Shape, WALL_OFFSET};
 use rand::{rngs::SmallRng, Rng, SeedableRng};

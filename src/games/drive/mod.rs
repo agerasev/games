@@ -2,12 +2,7 @@ mod terrain;
 mod vehicle;
 
 use self::vehicle::Vehicle;
-use crate::{
-    compat::mouse_wheel_clamped,
-    model::load_model,
-    numerical::{Solver, System, Visitor},
-    texture::noisy_texture,
-};
+use crate::{compat::mouse_wheel_clamped, model::load_model, texture::noisy_texture};
 use anyhow::Error;
 use defer::defer;
 use glam::{EulerRot, Quat, Vec2, Vec3};
@@ -26,12 +21,15 @@ use macroquad::{
     time::{get_frame_time, get_time},
     window::{clear_background, next_frame, screen_height},
 };
+use metaphysics::numerical::{Solver, System, Visitor};
 use rand::{rngs::SmallRng, SeedableRng};
 use std::{f32::consts::PI, future::Future, pin::Pin};
 use terrain::Terrain;
 use vehicle::VehicleModel;
 
-impl System for (&Terrain, &mut Vehicle) {
+pub struct WorldRef<'a, 'b>(&'a Terrain, &'b mut Vehicle);
+
+impl System for WorldRef<'_, '_> {
     fn compute_derivs(&mut self, dt: f32) {
         self.1.compute_basic_derivs();
         self.1.interact_with_terrain(self.0, dt);
@@ -121,7 +119,7 @@ pub async fn main() -> Result<(), Error> {
             }
 
             {
-                Solver.solve_step(&mut (&terrain, &mut vehicle), dt);
+                Solver.solve_step(&mut WorldRef(&terrain, &mut vehicle), dt);
 
                 if vehicle.pos().z < -100.0 {
                     break;
