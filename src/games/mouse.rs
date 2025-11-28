@@ -1,9 +1,20 @@
-use crate::text::{draw_text_aligned, load_default_font, TextAlign};
+//use crate::text::{draw_text_aligned, load_default_font, TextAlign};
 use anyhow::Error;
 use core::f32;
 use derive_more::derive::{Deref, DerefMut};
-use futures::{future::try_join_all, TryFutureExt};
-use glam::Vec2;
+use euclid::default::Rect;
+use futures::{TryFutureExt, future::try_join_all};
+use glam::{Affine2, Vec2};
+use wgame::{
+    Library, Window,
+    fs::read_bytes,
+    gfx::{Camera, CollectorWithContext, Object, Renderer},
+    image::Image,
+    prelude::*,
+    shapes::{Quad, ShapeExt, Textured},
+    texture::Texture,
+};
+/*
 use macroquad::{
     camera::{set_camera, set_default_camera, Camera2D},
     color,
@@ -18,10 +29,11 @@ use macroquad::{
     time::{get_frame_time, get_time},
     window::{clear_background, next_frame},
 };
+*/
 use rand::{
-    distributions::{Uniform, WeightedIndex},
-    rngs::SmallRng,
     Rng, SeedableRng,
+    distr::{Uniform, weighted::WeightedIndex},
+    rngs::SmallRng,
 };
 use rand_distr::Poisson;
 use std::{f32::consts::PI, future::Future, pin::Pin, time::Duration};
@@ -29,22 +41,21 @@ use std::{f32::consts::PI, future::Future, pin::Pin, time::Duration};
 #[derive(Clone, Debug)]
 pub struct Item {
     pub pos: Vec2,
-    pub image: Texture2D,
+    pub image: Textured<Quad>,
     pub radius: f32,
 }
 
-impl Item {
-    pub fn draw(&self, offset: Vec2) {
-        draw_texture_ex(
-            &self.image,
-            self.pos.x + offset.x - self.radius,
-            self.pos.y + offset.y - self.radius,
-            color::WHITE,
-            DrawTextureParams {
-                dest_size: Some(2.0 * Vec2::new(self.radius, self.radius)),
-                ..Default::default()
-            },
-        );
+impl Object for Item {
+    type Context = Camera;
+
+    fn draw<V: Renderer<Self::Context>>(&self, renderer: &mut V) {
+        self.image
+            .transform(Affine2::from_scale_angle_translation(
+                Vec2::splat(self.radius),
+                0.0,
+                self.pos,
+            ))
+            .draw(renderer)
     }
 }
 
@@ -56,7 +67,8 @@ pub struct Player {
     pub speed: f32,
 }
 
-pub async fn main() -> Result<(), Error> {
+pub async fn main(window: &mut Window<'_>) -> Result<(), Error> {
+    /*
     set_default_filter_mode(FilterMode::Nearest);
     let player_image = load_texture("mouse.png").await?;
     let items_images_and_probs = try_join_all(
@@ -223,19 +235,22 @@ pub async fn main() -> Result<(), Error> {
             next_frame().await;
         }
     }
+    */
+    Ok(())
 }
 
 pub struct Game {
-    mouse: Texture2D,
-    cheese: Texture2D,
+    gfx: wgame::Library,
+    mouse: Texture,
+    // cheese: Texture,
 }
 
 impl Game {
-    pub async fn new() -> Result<Self, Error> {
-        set_default_filter_mode(FilterMode::Nearest);
+    pub async fn new(gfx: &wgame::Library) -> Result<Self, Error> {
         Ok(Self {
-            mouse: load_texture("mouse.png").await?,
-            cheese: load_texture("cheese.png").await?,
+            gfx: gfx.clone(),
+            mouse: gfx.load_texture("assets/mouse.png").await?,
+            // cheese: gfx.load_texture("assets/cheese.png").await?,
         })
     }
 }
@@ -245,7 +260,20 @@ impl crate::Game for Game {
         "Мышь и сыр".to_owned()
     }
 
-    fn draw_preview(&self, rect: Rect) {
+    fn draw_preview(&self, renderer: &mut CollectorWithContext, rect: Rect<f32>) {
+        let min = Vec2::from_array(rect.min().to_array());
+        let max = Vec2::from_array(rect.max().to_array());
+        self.gfx
+            .shapes()
+            .unit_quad()
+            .transform(Affine2::from_scale_angle_translation(
+                0.5 * (max - min),
+                0.0,
+                0.5 * (min + max),
+            ))
+            .texture(&self.mouse)
+            .draw(renderer);
+        /*
         draw_texture_ex(
             &self.mouse,
             rect.x,
@@ -266,9 +294,13 @@ impl crate::Game for Game {
                 ..Default::default()
             },
         );
+        */
     }
 
-    fn launch(&self) -> Pin<Box<dyn Future<Output = Result<(), Error>>>> {
-        Box::pin(main())
+    fn launch<'a>(
+        &self,
+        window: &'a mut Window,
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + 'a>> {
+        Box::pin(main(window))
     }
 }

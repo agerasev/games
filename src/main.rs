@@ -1,4 +1,7 @@
 use anyhow::Error;
+use euclid::default::{Rect, Size2D};
+use wgame::{Window, gfx::types::color};
+/*
 use macroquad::{
     color,
     file::set_pc_assets_folder,
@@ -8,21 +11,23 @@ use macroquad::{
     shapes::draw_rectangle_lines,
     window::{clear_background, next_frame},
 };
+*/
 use std::env;
+use yarik_games::{games, layout};
+/*
 use yarik_games::{
     compat::reset_camera,
     games, layout,
     text::{load_default_font, Text, TextAlign},
 };
+*/
 
-#[macroquad::main("Yarik Games")]
-async fn main() -> Result<(), Error> {
-    set_pc_assets_folder("assets");
+#[wgame::window(title = "Games", size = (1280, 720), resizable = true)]
+async fn main(mut window: Window<'_>) -> Result<(), Error> {
+    let gfx = wgame::Library::new(window.graphics());
 
-    let games = games::all().await?;
-    let font = load_default_font().await?;
-
-    set_window_size(1280, 720);
+    let games = games::all(&gfx).await?;
+    let font = gfx.load_font("assets/free-sans-bold.ttf").await?;
 
     if let Some(name) = env::args().nth(1) {
         match games
@@ -30,7 +35,7 @@ async fn main() -> Result<(), Error> {
             .find_map(|(k, v)| if k == &name { Some(v) } else { None })
         {
             Some(game) => {
-                return game.launch().await;
+                return game.launch(&mut window).await;
             }
             None => panic!(
                 "Game not found: \"{name}\"\nAvailable games: {:?}",
@@ -38,24 +43,17 @@ async fn main() -> Result<(), Error> {
             ),
         }
     }
-    loop {
-        let screen = Vec2::from(screen_size());
-        let boxes = layout::grid((screen.x, screen.y), games.len(), 1.0);
+    while let Some(mut frame) = window.next_frame().await? {
+        let screen = Size2D::from(frame.size()).cast::<f32>();
 
-        clear_background(color::BLACK);
+        frame.clear(color::BLACK);
+        let mut renderer = frame.with_physical_camera();
+
+        let boxes = layout::grid(screen, games.len(), 1.0);
         for ((_, game), &rect) in games.iter().zip(boxes.iter().flatten()) {
-            {
-                let size = rect.size().min_element() / 2.0;
-                let rect = Rect::new(
-                    rect.center().x - size / 2.0,
-                    rect.center().y - size / 2.0,
-                    size,
-                    size,
-                );
-                game.draw_preview(rect);
-                reset_camera();
-            }
+            game.draw_preview(&mut renderer, rect);
 
+            /*
             let text = Text::new(
                 game.name(),
                 Some(font.clone()),
@@ -85,8 +83,9 @@ async fn main() -> Result<(), Error> {
                     color::GRAY,
                 );
             }
+            */
         }
-
-        next_frame().await
     }
+
+    Ok(())
 }

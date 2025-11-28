@@ -1,6 +1,5 @@
+use euclid::default::{Rect, Size2D};
 use std::iter::Peekable;
-
-use macroquad::math::Rect;
 
 struct SplitIter {
     index: usize,
@@ -52,8 +51,8 @@ impl Iterator for GridSizeIter {
     }
 }
 
-pub fn grid(size: (f32, f32), n: usize, aspect: f32) -> Vec<Vec<Rect>> {
-    let (w, h) = size;
+pub fn grid(size: Size2D<f32>, n: usize, aspect: f32) -> Vec<Vec<Rect<f32>>> {
+    let (w, h) = size.into();
     let mut iter = GridSizeIter::new(w, h, aspect);
     let ((nx, ny), (sx, sy)) = loop {
         let item = iter.next().unwrap();
@@ -68,7 +67,10 @@ pub fn grid(size: (f32, f32), n: usize, aspect: f32) -> Vec<Vec<Rect>> {
         boxes.push(Vec::new());
         let line = boxes.last_mut().unwrap();
         for ix in 0..nx {
-            line.push(Rect::new(sx * ix as f32, sy * iy as f32, sx, sy));
+            line.push(Rect::new(
+                (sx * ix as f32, sy * iy as f32).into(),
+                (sx, sy).into(),
+            ));
             count += 1;
             if count >= n {
                 break 'outer;

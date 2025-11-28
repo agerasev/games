@@ -1,0 +1,3 @@
+[submodule "wgame"]
+	path = wgame
+	url = https://github.com/agerasev/wgame.git
