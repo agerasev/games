@@ -2631,6 +2631,7 @@ dependencies = [
  "euclid",
  "glam 0.30.9",
  "half",
+ "hashbrown 0.16.1",
  "rgb",
  "wgame-gfx",
  "wgame-image",

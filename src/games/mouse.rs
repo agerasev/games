@@ -249,7 +249,9 @@ impl Game {
     pub async fn new(gfx: &wgame::Library) -> Result<Self, Error> {
         Ok(Self {
             gfx: gfx.clone(),
-            mouse: gfx.load_texture("assets/mouse.png").await?,
+            mouse: gfx
+                .load_texture("assets/mouse.png", Default::default())
+                .await?,
             // cheese: gfx.load_texture("assets/cheese.png").await?,
         })
     }
@@ -265,12 +267,7 @@ impl crate::Game for Game {
         let max = Vec2::from_array(rect.max().to_array());
         self.gfx
             .shapes()
-            .unit_quad()
-            .transform(Affine2::from_scale_angle_translation(
-                0.5 * (max - min),
-                0.0,
-                0.5 * (min + max),
-            ))
+            .quad(min, max)
             .texture(&self.mouse)
             .draw(renderer);
         /*
