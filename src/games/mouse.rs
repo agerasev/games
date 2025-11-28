@@ -242,7 +242,7 @@ pub async fn main(window: &mut Window<'_>) -> Result<(), Error> {
 pub struct Game {
     gfx: wgame::Library,
     mouse: Texture,
-    // cheese: Texture,
+    cheese: Texture,
 }
 
 impl Game {
@@ -252,7 +252,9 @@ impl Game {
             mouse: gfx
                 .load_texture("assets/mouse.png", Default::default())
                 .await?,
-            // cheese: gfx.load_texture("assets/cheese.png").await?,
+            cheese: gfx
+                .load_texture("assets/cheese.png", Default::default())
+                .await?,
         })
     }
 }
@@ -263,35 +265,20 @@ impl crate::Game for Game {
     }
 
     fn draw_preview(&self, renderer: &mut CollectorWithContext, rect: Rect<f32>) {
-        let min = Vec2::from_array(rect.min().to_array());
-        let max = Vec2::from_array(rect.max().to_array());
+        let center = Vec2::from_array(rect.center().to_array());
+        let size = 0.5 * rect.size.width.min(rect.size.height);
+        let min = center - Vec2::splat(size);
+        let max = center + Vec2::splat(size);
         self.gfx
             .shapes()
-            .quad(min, max)
+            .quad((min, max))
             .texture(&self.mouse)
             .draw(renderer);
-        /*
-        draw_texture_ex(
-            &self.mouse,
-            rect.x,
-            rect.y,
-            color::WHITE,
-            DrawTextureParams {
-                dest_size: Some(rect.size()),
-                ..Default::default()
-            },
-        );
-        draw_texture_ex(
-            &self.cheese,
-            rect.x,
-            rect.y + rect.h / 2.0,
-            color::WHITE,
-            DrawTextureParams {
-                dest_size: Some(rect.size() / 2.0),
-                ..Default::default()
-            },
-        );
-        */
+        self.gfx
+            .shapes()
+            .quad((min + Vec2::new(0.0, size), max - Vec2::new(size, 0.0)))
+            .texture(&self.cheese)
+            .draw(renderer);
     }
 
     fn launch<'a>(

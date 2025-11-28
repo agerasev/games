@@ -1,6 +1,7 @@
 use anyhow::Error;
-use euclid::default::{Rect, Size2D};
-use wgame::{Window, gfx::types::color};
+use euclid::default::Size2D;
+use glam::{Affine2, Vec2};
+use wgame::{Window, gfx::types::color, prelude::*, typography::TextAlign};
 /*
 use macroquad::{
     color,
@@ -28,6 +29,7 @@ async fn main(mut window: Window<'_>) -> Result<(), Error> {
 
     let games = games::all(&gfx).await?;
     let font = gfx.load_font("assets/free-sans-bold.ttf").await?;
+    let mut font_raster = None;
 
     if let Some(name) = env::args().nth(1) {
         match games
@@ -44,6 +46,11 @@ async fn main(mut window: Window<'_>) -> Result<(), Error> {
         }
     }
     while let Some(mut frame) = window.next_frame().await? {
+        if let Some((width, height)) = frame.resized() {
+            font_raster = Some(font.rasterize(width.min(height) as f32 / 20.0));
+        }
+        let font = font_raster.as_ref().unwrap();
+
         let screen = Size2D::from(frame.size()).cast::<f32>();
 
         frame.clear(color::BLACK);
@@ -51,20 +58,20 @@ async fn main(mut window: Window<'_>) -> Result<(), Error> {
 
         let boxes = layout::grid(screen, games.len(), 1.0);
         for ((_, game), &rect) in games.iter().zip(boxes.iter().flatten()) {
-            game.draw_preview(&mut renderer, rect);
+            game.draw_preview(
+                &mut renderer,
+                rect.inflate(-0.1 * rect.size.width, -0.1 * rect.size.height),
+            );
+
+            font.text(&game.name())
+                .align(TextAlign::Center)
+                .transform(Affine2::from_translation(Vec2::new(
+                    rect.center().x,
+                    rect.max_y() - font.size() / 2.0,
+                )))
+                .draw(&mut renderer);
 
             /*
-            let text = Text::new(
-                game.name(),
-                Some(font.clone()),
-                rect.size().min_element() / 10.0,
-            );
-            text.draw_aligned(
-                rect.center().x,
-                rect.bottom() - text.size / 2.0,
-                TextAlign::Center,
-                color::WHITE,
-            );
             if rect.contains(Vec2::from(mouse_position())) {
                 if is_mouse_button_pressed(MouseButton::Left) {
                     next_frame().await;
