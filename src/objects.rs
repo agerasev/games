@@ -1,26 +1,28 @@
 use super::TILT;
 use crate::animation::{Animation, AnimationInfo};
-use anyhow::{anyhow, Error};
-use macroquad::{
-    file::load_file,
-    math::Vec2,
-    texture::{load_texture, Texture2D},
-};
+use anyhow::{Error, anyhow};
 use serde::Deserialize;
-use std::{cell::RefCell, collections::HashMap, time::Duration};
+use std::{collections::HashMap, time::Duration};
+use wgame::{
+    Library,
+    gfx::Scene,
+    glam::Vec2,
+    image::Image,
+    texture::{Texture, TextureSettings},
+};
 
 pub trait Object {
     fn pos(&self) -> Vec2;
-    fn draw(&self);
+    fn draw(&self, lib: &Library, scene: &mut Scene, order: i32);
 }
 
-impl<T: Object> Object for RefCell<T> {
-    fn pos(&self) -> Vec2 {
-        self.borrow().pos()
-    }
-    fn draw(&self) {
-        self.borrow().draw();
-    }
+fn texture(lib: &Library, bytes: &[u8]) -> Result<Texture, Error> {
+    Ok(lib.make_texture(&Image::decode_auto(bytes)?, TextureSettings::nearest()))
+}
+
+fn validate(info: &AnimationInfo, texture: &Texture) -> Result<(), Error> {
+    let size = texture.size();
+    info.validate([size.width, size.height])
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -31,16 +33,18 @@ pub struct TreeAnimation {
 
 #[derive(Clone, Debug)]
 pub struct TreeSpecies {
-    texture: Texture2D,
+    texture: Texture,
     animation: TreeAnimation,
 }
 
 impl TreeSpecies {
-    pub async fn load(texture_path: &str, animation_path: &str) -> Result<Self, Error> {
-        Ok(Self {
-            texture: load_texture(texture_path).await?,
-            animation: serde_json::from_slice(&load_file(animation_path).await?)?,
-        })
+    pub fn load(lib: &Library) -> Result<Self, Error> {
+        let texture = texture(lib, include_bytes!("../assets/tree.png"))?;
+        let animation: TreeAnimation =
+            serde_json::from_slice(include_bytes!("../assets/tree.json"))?;
+        validate(&animation.trunk, &texture)?;
+        validate(&animation.leaves, &texture)?;
+        Ok(Self { texture, animation })
     }
 }
 
@@ -60,7 +64,7 @@ impl<'a> Object for Tree<'a> {
     fn pos(&self) -> Vec2 {
         self.pos
     }
-    fn draw(&self) {
+    fn draw(&self, lib: &Library, scene: &mut Scene, order: i32) {
         let trunk = Animation::new(
             &self.species.texture,
             &self.species.animation.trunk,
@@ -74,8 +78,8 @@ impl<'a> Object for Tree<'a> {
 
         let size = self.growth * Self::SHAPE;
         let pos = (self.pos - self.growth * Self::CENTER) * Vec2::new(1.0, TILT);
-        trunk.draw(pos, size, Duration::ZERO);
-        leaves.draw(pos, size, Duration::ZERO);
+        trunk.draw(lib, scene, order, pos, size, Duration::ZERO);
+        leaves.draw(lib, scene, order + 1, pos, size, Duration::ZERO);
     }
 }
 
@@ -102,9 +106,9 @@ struct PersonAnimations {
 }
 
 impl PersonAnimations {
-    async fn load(path: &str) -> Result<Self, Error> {
+    fn load() -> Result<Self, Error> {
         let mut container: HashMap<String, AnimationInfo> =
-            serde_json::from_slice(&load_file(path).await?)?;
+            serde_json::from_slice(include_bytes!("../assets/man.json"))?;
 
         let mut extract_group = |name: &str| -> Result<[AnimationInfo; 3], Error> {
             Ok(["front", "back", "side"]
@@ -128,7 +132,7 @@ impl PersonAnimations {
 
 #[derive(Clone, Debug)]
 pub struct Personality {
-    texture: Texture2D,
+    texture: Texture,
     animations: PersonAnimations,
 }
 
@@ -136,34 +140,21 @@ impl Personality {
     pub const SIZE: Vec2 = Vec2::new(1.0, 2.0);
     pub const CENTER: Vec2 = Vec2::new(0.5, 1.8);
 
-    pub async fn new(texture_path: &str, animations_path: &str) -> Result<Self, Error> {
+    pub fn new(lib: &Library) -> Result<Self, Error> {
+        let texture = texture(lib, include_bytes!("../assets/man.png"))?;
+        let animations = PersonAnimations::load()?;
+        for info in animations
+            .head_torso
+            .iter()
+            .chain(&animations.hands_legs_stand)
+            .chain(&animations.hands_legs_run)
+        {
+            validate(info, &texture)?;
+        }
         Ok(Self {
-            texture: load_texture(texture_path).await?,
-            animations: PersonAnimations::load(animations_path).await?,
+            texture,
+            animations,
         })
-    }
-
-    pub fn draw(
-        &self,
-        pos: Vec2,
-        size: Vec2,
-        (orientation, flip): (Orientation, bool),
-        action: Action,
-        (animation_period, action_duration): (Duration, Duration),
-    ) {
-        let head_torso = &self.animations.head_torso[orientation as usize];
-        let hands_legs = match action {
-            Action::Stand => &self.animations.hands_legs_stand[orientation as usize],
-            Action::Run => &self.animations.hands_legs_run[orientation as usize],
-        };
-
-        let head_torso =
-            Animation::new(&self.texture, head_torso, animation_period).flip(flip, false);
-        let hands_legs =
-            Animation::new(&self.texture, hands_legs, animation_period).flip(flip, false);
-
-        head_torso.draw(pos, size, action_duration);
-        hands_legs.draw(pos, size, action_duration);
     }
 }
 
@@ -206,7 +197,7 @@ impl<'a> Object for Character<'a> {
     fn pos(&self) -> Vec2 {
         self.position
     }
-    fn draw(&self) {
+    fn draw(&self, lib: &Library, scene: &mut Scene, order: i32) {
         let orientation = if !(-TILT..=TILT).contains(&self.direction.x) {
             Orientation::Side
         } else if self.direction.y > 0.0 {
@@ -224,12 +215,20 @@ impl<'a> Object for Character<'a> {
         let size = Personality::SIZE;
         let pos = (self.position - Personality::CENTER) * Vec2::new(1.0, TILT);
 
-        self.look.draw(
-            pos,
-            size,
-            (orientation, flip),
-            action,
-            (Self::ANIMATION_PERIOD, self.action_duration),
-        )
+        let animation_period = Self::ANIMATION_PERIOD;
+        let action_duration = self.action_duration;
+        let head_torso = &self.look.animations.head_torso[orientation as usize];
+        let hands_legs = match action {
+            Action::Stand => &self.look.animations.hands_legs_stand[orientation as usize],
+            Action::Run => &self.look.animations.hands_legs_run[orientation as usize],
+        };
+
+        let head_torso =
+            Animation::new(&self.look.texture, head_torso, animation_period).flip(flip);
+        let hands_legs =
+            Animation::new(&self.look.texture, hands_legs, animation_period).flip(flip);
+
+        head_torso.draw(lib, scene, order, pos, size, action_duration);
+        hands_legs.draw(lib, scene, order + 1, pos, size, action_duration);
     }
 }
