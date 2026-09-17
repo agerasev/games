@@ -1,98 +1,81 @@
-use anyhow::Error;
-use euclid::default::Size2D;
-use glam::{Affine2, Vec2};
-use wgame::{Window, gfx::types::color, prelude::*, typography::TextAlign};
-/*
-use macroquad::{
-    color,
-    file::set_pc_assets_folder,
-    input::{is_mouse_button_pressed, mouse_position, MouseButton},
-    math::{Rect, Vec2},
-    miniquad::window::{screen_size, set_window_size},
-    shapes::draw_rectangle_lines,
-    window::{clear_background, next_frame},
+use wgame::{
+    Library, Result, Window, WindowHost, app::time::Instant, canvas::Event, gfx::types::color,
+    glam::Vec2, prelude::*,
 };
-*/
-use std::env;
-use yarik_games::{games, layout};
-/*
 use yarik_games::{
-    compat::reset_camera,
-    games, layout,
-    text::{load_default_font, Text, TextAlign},
+    App,
+    draw::{Assets, Painter},
+    games::GameId,
 };
-*/
 
-#[wgame::window(title = "Games", size = (1280, 720), resizable = true)]
-async fn main(mut window: Window<'_>) -> Result<(), Error> {
-    let gfx = wgame::Library::new(window.graphics());
+#[wgame::window(title = "Games", logical_size = (1280.0, 720.0), resizable = true, vsync = true)]
+async fn main(window: Window<'_>) -> Result<()> {
+    run(window).await
+}
 
-    let games = games::all(&gfx).await?;
-    let font = gfx.load_font("assets/free-sans-bold.ttf").await?;
-    let mut font_raster = None;
+fn options() -> Result<(Option<GameId>, bool)> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let mut start = None;
+        let mut smoke = false;
+        for arg in std::env::args().skip(1) {
+            if arg == "--smoke" {
+                smoke = true;
+            } else {
+                start = Some(GameId::parse(&arg).ok_or_else(|| {
+                    wgame::Error::msg(format!(
+                        "Unknown game {arg:?}; choose apples, letters, or mouse"
+                    ))
+                })?);
+            }
+        }
+        Ok((start, smoke))
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        Ok((None, false))
+    }
+}
 
-    if let Some(name) = env::args().nth(1) {
-        match games
+async fn run(mut host: impl WindowHost) -> Result<()> {
+    let (start, smoke) = options()?;
+    let lib = Library::new(host.graphics());
+    let mut assets = Assets::new(&lib)?;
+    let mut app = App::new(start);
+    let mut last = Instant::now();
+    let mut frames = 0;
+    while let Some(mut frame) = host.next_frame().await? {
+        let now = Instant::now();
+        let reset = frame
+            .input()
+            .events
             .iter()
-            .find_map(|(k, v)| if k == &name { Some(v) } else { None })
-        {
-            Some(game) => {
-                return game.launch(&mut window).await;
-            }
-            None => panic!(
-                "Game not found: \"{name}\"\nAvailable games: {:?}",
-                games.iter().map(|(k, _)| k).collect::<Vec<_>>()
-            ),
+            .any(|event| matches!(event, Event::Cancelled | Event::Focused(_)));
+        let dt = if reset || !frame.visible() || !frame.input().window_focused {
+            0.0
+        } else {
+            (now - last).as_secs_f32().min(0.04)
+        };
+        last = now;
+        let (width, height) = frame.logical_size();
+        let size = Vec2::new(width as f32, height as f32);
+        if !app.update(frame.input(), dt, size) {
+            frame.discard();
+            break;
         }
-    }
-    while let Some(mut frame) = window.next_frame().await? {
-        if let Some((width, height)) = frame.resized() {
-            font_raster = Some(font.rasterize(width.min(height) as f32 / 20.0));
-        }
-        let font = font_raster.as_ref().unwrap();
-
-        let screen = Size2D::from(frame.size()).cast::<f32>();
-
+        assets.set_scale_factor(frame.scale_factor());
         frame.clear(color::BLACK);
-        let mut renderer = frame.with_physical_camera();
-
-        let boxes = layout::grid(screen, games.len(), 1.0);
-        for ((_, game), &rect) in games.iter().zip(boxes.iter().flatten()) {
-            game.draw_preview(
-                &mut renderer,
-                rect.inflate(-0.1 * rect.size.width, -0.1 * rect.size.height),
-            );
-
-            font.text(&game.name())
-                .align(TextAlign::Center)
-                .transform(Affine2::from_translation(Vec2::new(
-                    rect.center().x,
-                    rect.max_y() - font.size() / 2.0,
-                )))
-                .draw(&mut renderer);
-
-            /*
-            if rect.contains(Vec2::from(mouse_position())) {
-                if is_mouse_button_pressed(MouseButton::Left) {
-                    next_frame().await;
-                    game.launch().await?;
-                    reset_camera();
-                    continue;
-                }
-
-                let margin = 4.0;
-                draw_rectangle_lines(
-                    rect.x + margin,
-                    rect.y + margin,
-                    rect.w - 2.0 * margin,
-                    rect.h - 2.0 * margin,
-                    8.0,
-                    color::GRAY,
-                );
-            }
-            */
+        if frame.visible() {
+            let mut painter = Painter::new(&lib, &assets, size);
+            app.draw(&mut painter);
+            let camera = frame.logical_camera();
+            frame.render_iter(&camera, painter.scene.iter());
+        }
+        frame.present();
+        frames += 1;
+        if smoke && frames >= 12 {
+            break;
         }
     }
-
     Ok(())
 }

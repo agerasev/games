@@ -1,290 +1,187 @@
-//use crate::text::{draw_text_aligned, load_default_font, TextAlign};
-use anyhow::Error;
-use core::f32;
-use derive_more::derive::{Deref, DerefMut};
-use euclid::default::Rect;
-use futures::{TryFutureExt, future::try_join_all};
-use glam::{Affine2, Vec2};
-use wgame::{
-    Library, Window,
-    fs::read_bytes,
-    gfx::{Camera, CollectorWithContext, Object, Renderer},
-    image::Image,
-    prelude::*,
-    shapes::{Quad, ShapeExt, Textured},
-    texture::Texture,
+use crate::{
+    draw::{Painter, Sprite},
+    layout::rect,
 };
-/*
-use macroquad::{
-    camera::{set_camera, set_default_camera, Camera2D},
-    color,
-    input::{is_key_down, KeyCode},
-    math::Rect,
-    miniquad::window::screen_size,
-    shapes::draw_rectangle,
-    texture::{
-        draw_texture_ex, load_texture, set_default_filter_mode, DrawTextureParams, FilterMode,
-        Texture2D,
-    },
-    time::{get_frame_time, get_time},
-    window::{clear_background, next_frame},
-};
-*/
-use rand::{
-    Rng, SeedableRng,
-    distr::{Uniform, weighted::WeightedIndex},
-    rngs::SmallRng,
-};
+use rand::{Rng, SeedableRng, rngs::SmallRng};
 use rand_distr::Poisson;
-use std::{f32::consts::PI, future::Future, pin::Pin, time::Duration};
+use std::f32::consts::PI;
+use wgame::{
+    canvas::{CanvasInput, Key},
+    gfx::types::color,
+    glam::{Affine2, Vec2, Vec3},
+};
 
-#[derive(Clone, Debug)]
-pub struct Item {
-    pub pos: Vec2,
-    pub image: Textured<Quad>,
-    pub radius: f32,
-}
+const MAP_SIZE: Vec2 = Vec2::new(40.0, 30.0);
+const MEAN_ITEMS: f32 = 16.0;
 
-impl Object for Item {
-    type Context = Camera;
-
-    fn draw<V: Renderer<Self::Context>>(&self, renderer: &mut V) {
-        self.image
-            .transform(Affine2::from_scale_angle_translation(
-                Vec2::splat(self.radius),
-                0.0,
-                self.pos,
-            ))
-            .draw(renderer)
-    }
-}
-
-#[derive(Clone, Debug, Deref, DerefMut)]
-pub struct Player {
-    #[deref]
-    #[deref_mut]
-    pub base: Item,
-    pub speed: f32,
-}
-
-pub async fn main(window: &mut Window<'_>) -> Result<(), Error> {
-    /*
-    set_default_filter_mode(FilterMode::Nearest);
-    let player_image = load_texture("mouse.png").await?;
-    let items_images_and_probs = try_join_all(
-        vec![("cheese.png", 0.8), ("apple.png", 0.2)]
-            .into_iter()
-            .map(|(path, prob)| load_texture(path).map_ok(move |t| (t, prob))),
-    )
-    .await?;
-    let font = load_default_font().await?;
-
-    let mut rng = SmallRng::seed_from_u64(0xdeadbeef);
-
-    loop {
-        let map_size = Vec2::from([40.0, 30.0]);
-        let mean_items: f32 = 16.0;
-        let num_items = rng.sample(Poisson::new(mean_items).unwrap()).round() as usize;
-
-        let mut player = Player {
-            base: Item {
-                pos: map_size / 2.0,
-                image: player_image.clone(),
-                radius: 0.75,
-            },
-            speed: 10.0,
-        };
-
-        let mut items: Vec<_> = {
-            let item_radius = 0.5;
-            (0..num_items)
-                .map(|_| Item {
-                    pos: Vec2::from([
-                        rng.sample(Uniform::new(item_radius, map_size.x - item_radius)),
-                        rng.sample(Uniform::new(item_radius, map_size.y - item_radius)),
-                    ]),
-                    image: items_images_and_probs[rng.sample(
-                        WeightedIndex::new(items_images_and_probs.iter().map(|(_, prob)| prob))
-                            .unwrap(),
-                    )]
-                    .0
-                    .clone(),
-                    radius: item_radius,
-                })
-                .collect()
-        };
-
-        let mut timeout = Duration::from_secs_f32(1.0);
-
-        loop {
-            if is_key_down(KeyCode::Escape) {
-                return Ok(());
-            }
-
-            let dt = Duration::from_secs_f32(get_frame_time());
-
-            // Move player
-            {
-                let mut motion = Vec2::ZERO;
-                if is_key_down(KeyCode::Up) || is_key_down(KeyCode::W) {
-                    motion -= Vec2::from([0.0, 1.0]);
-                }
-                if is_key_down(KeyCode::Down) || is_key_down(KeyCode::S) {
-                    motion += Vec2::from([0.0, 1.0]);
-                }
-                if is_key_down(KeyCode::Left) || is_key_down(KeyCode::A) {
-                    motion -= Vec2::from([1.0, 0.0]);
-                }
-                if is_key_down(KeyCode::Right) || is_key_down(KeyCode::D) {
-                    motion += Vec2::from([1.0, 0.0]);
-                }
-                let step = player.speed * dt.as_secs_f32();
-                player.pos += motion * step;
-
-                player.pos = player.pos.clamp(
-                    Vec2::from([player.radius; 2]),
-                    map_size - Vec2::from([player.radius; 2]),
-                );
-            }
-
-            // Collect items and exit if no items remain
-            {
-                items.retain(|item| {
-                    if (player.pos - item.pos).length() > (player.radius + item.radius) {
-                        true
-                    } else {
-                        player.radius += 1.0 / (mean_items * (2.0 * player.radius).sqrt());
-                        false
-                    }
-                });
-
-                if items.is_empty() {
-                    if timeout.is_zero() {
-                        break;
-                    } else {
-                        timeout = timeout.saturating_sub(dt);
-                    }
-                }
-            }
-
-            // Draw frame
-            {
-                let viewport = Vec2::from(screen_size());
-                let scale = (viewport / map_size).min_element();
-
-                clear_background(color::BLACK);
-
-                {
-                    let camera = Camera2D {
-                        zoom: 2.0 * viewport.recip() * scale,
-                        target: map_size / 2.0,
-                        ..Default::default()
-                    };
-                    set_camera(&camera);
-
-                    draw_rectangle(0.0, 0.0, map_size.x, map_size.y, color::DARKGRAY);
-
-                    for item in &items {
-                        item.draw(Vec2::new(0.0, 0.1 * (PI * get_time() as f32).sin()));
-                    }
-                    player.draw(Vec2::ZERO);
-
-                    set_default_camera();
-                }
-
-                let text_offset = 6.0;
-                draw_text_aligned(
-                    "Собрано",
-                    text_offset,
-                    scale * 0.8,
-                    TextAlign::Left,
-                    Some(&font),
-                    scale * 0.8,
-                    color::WHITE,
-                );
-                draw_text_aligned(
-                    &format!("{}", num_items - items.len()),
-                    text_offset,
-                    scale * 2.6,
-                    TextAlign::Left,
-                    Some(&font),
-                    scale * 2.0,
-                    color::WHITE,
-                );
-
-                draw_text_aligned(
-                    "Осталось",
-                    viewport.x - text_offset,
-                    scale * 0.8,
-                    TextAlign::Right,
-                    Some(&font),
-                    scale * 0.8,
-                    color::WHITE,
-                );
-                draw_text_aligned(
-                    &format!("{}", items.len()),
-                    viewport.x - text_offset,
-                    scale * 2.6,
-                    TextAlign::Right,
-                    Some(&font),
-                    scale * 2.0,
-                    color::WHITE,
-                );
-            }
-
-            next_frame().await;
-        }
-    }
-    */
-    Ok(())
+struct Item {
+    pos: Vec2,
+    sprite: Sprite,
 }
 
 pub struct Game {
-    gfx: wgame::Library,
-    mouse: Texture,
-    cheese: Texture,
+    rng: SmallRng,
+    player: Vec2,
+    radius: f32,
+    items: Vec<Item>,
+    total: usize,
+    timeout: f32,
+    elapsed: f32,
 }
-
 impl Game {
-    pub async fn new(gfx: &wgame::Library) -> Result<Self, Error> {
-        Ok(Self {
-            gfx: gfx.clone(),
-            mouse: gfx
-                .load_texture("assets/mouse.png", Default::default())
-                .await?,
-            cheese: gfx
-                .load_texture("assets/cheese.png", Default::default())
-                .await?,
-        })
+    pub fn new() -> Self {
+        let mut game = Self {
+            rng: SmallRng::seed_from_u64(0xdeadbeef),
+            player: MAP_SIZE / 2.0,
+            radius: 0.75,
+            items: Vec::new(),
+            total: 0,
+            timeout: 1.0,
+            elapsed: 0.0,
+        };
+        game.restart();
+        game
+    }
+    fn restart(&mut self) {
+        self.player = MAP_SIZE / 2.0;
+        self.radius = 0.75;
+        self.total = (self.rng.sample(Poisson::new(MEAN_ITEMS).unwrap()).round() as usize).max(1);
+        self.items = (0..self.total)
+            .map(|_| Item {
+                pos: Vec2::new(
+                    self.rng.random_range(0.5..MAP_SIZE.x - 0.5),
+                    self.rng.random_range(0.5..MAP_SIZE.y - 0.5),
+                ),
+                sprite: if self.rng.random_bool(0.8) {
+                    Sprite::Cheese
+                } else {
+                    Sprite::Apple
+                },
+            })
+            .collect();
+        self.timeout = 1.0;
+    }
+    pub fn update(&mut self, input: &CanvasInput, dt: f32) {
+        self.elapsed = (self.elapsed + dt) % 2.0;
+        self.player = (self.player + motion(input) * (10.0 * dt))
+            .clamp(Vec2::splat(self.radius), MAP_SIZE - self.radius);
+        self.items.retain(|item| {
+            if self.player.distance(item.pos) > self.radius + 0.5 {
+                true
+            } else {
+                self.radius += 1.0 / (MEAN_ITEMS * (2.0 * self.radius).sqrt());
+                false
+            }
+        });
+        self.player = self
+            .player
+            .clamp(Vec2::splat(self.radius), MAP_SIZE - self.radius);
+        if self.items.is_empty() {
+            self.timeout = (self.timeout - dt).max(0.0);
+            if self.timeout == 0.0 {
+                self.restart();
+            }
+        }
+    }
+    pub fn draw(&self, painter: &mut Painter<'_>) {
+        let viewport = painter.size;
+        let scale = (viewport / MAP_SIZE).min_element();
+        let origin = (viewport - MAP_SIZE * scale) / 2.0;
+        painter.rectangle(
+            rect(origin.x, origin.y, MAP_SIZE.x * scale, MAP_SIZE.y * scale),
+            Vec3::splat(0.22),
+        );
+        let transform = |pos: Vec2, radius: f32| {
+            Affine2::from_scale_angle_translation(
+                Vec2::splat(radius * scale),
+                0.0,
+                origin + pos * scale,
+            )
+        };
+        for item in &self.items {
+            let bob = Vec2::new(0.0, 0.1 * (PI * self.elapsed).sin());
+            painter.sprite_transform(item.sprite, transform(item.pos + bob, 0.5), color::WHITE);
+        }
+        painter.sprite_transform(
+            Sprite::Mouse,
+            transform(self.player, self.radius),
+            color::WHITE,
+        );
+        let width = (viewport.x / 4.0).min(160.0);
+        for (x, title, count) in [
+            (4.0, "Собрано", self.total - self.items.len()),
+            (viewport.x - width - 4.0, "Осталось", self.items.len()),
+        ] {
+            painter.label(title, rect(x, 4.0, width, 30.0), 22.0, 0, color::WHITE);
+            painter.label(
+                &count.to_string(),
+                rect(x, 34.0, width, 55.0),
+                48.0,
+                0,
+                color::WHITE,
+            );
+        }
     }
 }
+fn motion(input: &CanvasInput) -> Vec2 {
+    let held = |arrow, letter| input.key_down(arrow) || input.key_down(Key::Character(letter));
+    Vec2::new(
+        f32::from(held(Key::ArrowRight, 'd')) - f32::from(held(Key::ArrowLeft, 'a')),
+        f32::from(held(Key::ArrowDown, 's')) - f32::from(held(Key::ArrowUp, 'w')),
+    )
+}
 
-impl crate::Game for Game {
-    fn name(&self) -> String {
-        "Мышь и сыр".to_owned()
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use wgame::canvas::{Event, InputState};
+    #[test]
+    fn movement_collection_and_restart() {
+        let mut game = Game::new();
+        game.items = vec![Item {
+            pos: game.player + Vec2::X,
+            sprite: Sprite::Cheese,
+        }];
+        game.total = 1;
+        let mut input = InputState::default();
+        input.push(Event::Key {
+            key: Key::Character('d'),
+            pressed: true,
+            repeat: false,
+        });
+        game.update(input.input(), 0.05);
+        assert!(game.items.is_empty());
+        assert!(game.radius > 0.75);
+        let player = game.player;
+        input.push(Event::Focused(false));
+        game.update(input.input(), 0.0);
+        assert_eq!(game.player, player);
+        for _ in 0..30 {
+            game.update(input.input(), 0.04);
+        }
+        assert!(!game.items.is_empty());
+        assert_eq!(game.radius, 0.75);
+        assert_eq!(game.player, MAP_SIZE / 2.0);
     }
-
-    fn draw_preview(&self, renderer: &mut CollectorWithContext, rect: Rect<f32>) {
-        let center = Vec2::from_array(rect.center().to_array());
-        let size = 0.5 * rect.size.width.min(rect.size.height);
-        let min = center - Vec2::splat(size);
-        let max = center + Vec2::splat(size);
-        self.gfx
-            .shapes()
-            .quad((min, max))
-            .texture(&self.mouse)
-            .draw(renderer);
-        self.gfx
-            .shapes()
-            .quad((min + Vec2::new(0.0, size), max - Vec2::new(size, 0.0)))
-            .texture(&self.cheese)
-            .draw(renderer);
-    }
-
-    fn launch<'a>(
-        &self,
-        window: &'a mut Window,
-    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + 'a>> {
-        Box::pin(main(window))
+    #[test]
+    fn movement_aliases_do_not_double_speed_and_stay_in_bounds() {
+        let mut input = InputState::default();
+        for key in [Key::ArrowRight, Key::Character('d')] {
+            input.push(Event::Key {
+                key,
+                pressed: true,
+                repeat: false,
+            });
+        }
+        assert_eq!(motion(input.input()), Vec2::X);
+        let mut game = Game::new();
+        game.update(input.input(), 100.0);
+        assert_eq!(game.player.x, MAP_SIZE.x - game.radius);
+        input.push(Event::Key {
+            key: Key::ArrowLeft,
+            pressed: true,
+            repeat: false,
+        });
+        assert_eq!(motion(input.input()), Vec2::ZERO);
     }
 }

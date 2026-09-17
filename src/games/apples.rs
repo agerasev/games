@@ -1,301 +1,254 @@
-use crate::text::{draw_text_aligned, load_default_font, TextAlign};
-use anyhow::Error;
-use glam::Vec2;
-use macroquad::{
-    color,
-    input::{is_key_down, is_key_pressed, KeyCode},
-    math::Rect,
-    miniquad::window::screen_size,
-    texture::{
-        draw_texture_ex, load_texture, set_default_filter_mode, DrawTextureParams, FilterMode,
-        Texture2D,
-    },
-    time::get_frame_time,
-    ui::{root_ui, widgets::Button, Skin},
-    window::{clear_background, next_frame},
+use crate::{
+    clicks,
+    draw::{Painter, Sprite},
+    layout::{contains, rect},
+    pressed_keys,
 };
-use rand::{distributions::Uniform, rngs::SmallRng, Rng, SeedableRng};
-use std::{future::Future, pin::Pin, time::Duration};
+use euclid::default::Rect;
+use rand::{Rng, SeedableRng, rngs::SmallRng};
+use wgame::{
+    canvas::{CanvasInput, Event, Key},
+    gfx::types::color,
+    glam::{Vec2, Vec3},
+};
 
-/// Grammatical gender
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Copy, Debug)]
 enum Gender {
     Masculine,
     Feminine,
     Neuter,
 }
-
-struct Item {
-    image: Texture2D,
+struct Fruit {
+    sprite: Sprite,
     stem: &'static str,
     endings: [&'static str; 3],
     gender: Gender,
 }
+const FRUITS: [Fruit; 3] = [
+    Fruit {
+        sprite: Sprite::Apple,
+        stem: "яблок",
+        endings: ["о", "а", ""],
+        gender: Gender::Neuter,
+    },
+    Fruit {
+        sprite: Sprite::Pear,
+        stem: "груш",
+        endings: ["а", "и", ""],
+        gender: Gender::Feminine,
+    },
+    Fruit {
+        sprite: Sprite::Orange,
+        stem: "апельсин",
+        endings: ["", "а", "ов"],
+        gender: Gender::Masculine,
+    },
+];
 
-const INPUT_TIMEOUT: Duration = Duration::from_secs(4);
-
-pub async fn main() -> Result<(), Error> {
-    set_default_filter_mode(FilterMode::Nearest);
-    let items = [
-        Item {
-            image: load_texture("apple.png").await?,
-            stem: "яблок",
-            endings: ["о", "а", ""],
-            gender: Gender::Neuter,
-        },
-        Item {
-            image: load_texture("pear.png").await?,
-            stem: "груш",
-            endings: ["а", "и", ""],
-            gender: Gender::Feminine,
-        },
-        Item {
-            image: load_texture("orange.png").await?,
-            stem: "апельсин",
-            endings: ["", "а", "ов"],
-            gender: Gender::Masculine,
-        },
-    ];
-
-    let font = load_default_font().await?;
-    {
-        let mut ui = root_ui();
-        let style = ui
-            .style_builder()
-            .with_font(&font)?
-            .font_size(20)
-            .color(color::BLACK)
-            .color_hovered(color::WHITE)
-            .color_clicked(color::RED)
-            .text_color(color::WHITE)
-            .text_color_hovered(color::BLACK)
-            .text_color_clicked(color::BLACK)
-            .build();
-        let skin = Skin {
-            button_style: style,
-            ..ui.default_skin()
-        };
-        ui.push_skin(&skin);
-        ui.clear_input_focus();
-    }
-    let mut number_font = Some(&font);
-
-    let mut max_number = 10;
-
-    let mut rng = SmallRng::seed_from_u64(0xdeadbeef);
-    let mut number: i64 = rng.sample(Uniform::new_inclusive(1, max_number));
-    let mut item = &items[0];
-
-    let mut input = Vec::<i64>::new();
-    let mut input_cooldown = Duration::ZERO;
-
-    while !is_key_down(KeyCode::Escape) {
-        if number > max_number {
-            number = max_number;
-        }
-        let dt = Duration::from_secs_f32(get_frame_time());
-
-        let viewport = Vec2::from(screen_size());
-        let scale = viewport.y / 10.0;
-
-        {
-            if is_key_pressed(KeyCode::GraveAccent) {
-                number_font = match number_font {
-                    Some(_) => None,
-                    None => Some(&font),
-                };
-            }
-
-            const NUM_KEYS: [[KeyCode; 2]; 10] = [
-                [KeyCode::Key0, KeyCode::Kp0],
-                [KeyCode::Key1, KeyCode::Kp1],
-                [KeyCode::Key2, KeyCode::Kp2],
-                [KeyCode::Key3, KeyCode::Kp3],
-                [KeyCode::Key4, KeyCode::Kp4],
-                [KeyCode::Key5, KeyCode::Kp5],
-                [KeyCode::Key6, KeyCode::Kp6],
-                [KeyCode::Key7, KeyCode::Kp7],
-                [KeyCode::Key8, KeyCode::Kp8],
-                [KeyCode::Key9, KeyCode::Kp9],
-            ];
-            let mut key_num = None;
-            for (i, [k, kp]) in NUM_KEYS.iter().copied().enumerate() {
-                if is_key_pressed(k) || is_key_pressed(kp) {
-                    key_num = Some(i as i64);
-                }
-            }
-
-            let mut apply = false;
-
-            if !input.is_empty() {
-                input_cooldown = input_cooldown.saturating_sub(dt);
-                if input_cooldown.is_zero() {
-                    input.clear();
-                }
-            }
-            if let Some(n) = key_num {
-                input.push(n);
-                input_cooldown = INPUT_TIMEOUT;
-            }
-
-            let mut add = 0;
-            if is_key_pressed(KeyCode::Minus) || is_key_pressed(KeyCode::KpSubtract) {
-                add -= 1;
-                apply = true;
-            }
-            if is_key_pressed(KeyCode::Equal) || is_key_pressed(KeyCode::KpAdd) {
-                add += 1;
-                apply = true;
-            }
-            if is_key_pressed(KeyCode::PageDown) {
-                add -= 10;
-                apply = true;
-            }
-            if is_key_pressed(KeyCode::PageUp) {
-                add += 10;
-                apply = true;
-            }
-            if is_key_pressed(KeyCode::Enter) || is_key_pressed(KeyCode::Space) {
-                apply = true;
-            }
-            if is_key_pressed(KeyCode::Backspace) || is_key_pressed(KeyCode::Delete) {
-                input.clear();
-            }
-
-            if apply && !input.is_empty() || 10i64.pow(input.len() as u32) >= max_number {
-                number = input.iter().fold(0, |a, n| a * 10 + n);
-                input.clear();
-            }
-            if apply {
-                number = (number + add).clamp(0, max_number);
-            }
-        }
-
-        clear_background(color::BLACK);
-
-        if max_number <= 10 {
-            draw_items(
-                number,
-                Vec2::new(viewport.x / 2.0, viewport.y / 4.0),
-                scale,
-                &item.image,
-                true,
-            );
-        } else {
-            draw_items(
-                number,
-                Vec2::new(viewport.x / 4.0, viewport.y / 4.0),
-                0.5 * scale,
-                &item.image,
-                false,
-            );
-        }
-
-        draw_text_aligned(
-            "=",
-            viewport.x / 2.0,
-            viewport.y / 2.0,
-            TextAlign::Center,
-            number_font,
-            2.0 * scale,
-            color::WHITE,
-        );
-
-        let text_pos = if max_number <= 10 {
-            Vec2::new(0.5 * viewport.x, 0.75 * viewport.y)
-        } else {
-            Vec2::new(0.75 * viewport.x, 0.5 * viewport.y)
-        };
-        if !input.is_empty() {
-            let text = input.iter().fold(String::new(), |s, n| s + &n.to_string()) + "_";
-            draw_text_aligned(
-                &text,
-                text_pos.x,
-                text_pos.y - 2.0 * scale,
-                TextAlign::Center,
-                number_font,
-                0.25 * scale,
-                color::DARKGRAY,
-            );
-        }
-        draw_text_aligned(
-            &format!("{number}"),
-            text_pos.x,
-            text_pos.y,
-            TextAlign::Center,
-            number_font,
-            2.0 * scale,
-            color::WHITE,
-        );
-        draw_text_aligned(
-            &items_text(number, item.stem, item.endings, item.gender),
-            text_pos.x,
-            text_pos.y + 1.0 * scale,
-            TextAlign::Center,
-            Some(&font),
-            0.5 * scale,
-            color::WHITE,
-        );
-
-        {
-            let mut ui = root_ui();
-
-            for (i, it) in items.iter().enumerate() {
-                if Button::new(it.image.clone())
-                    .position(Vec2::new(10.0 + i as f32 * (10.0 + 32.0), 10.0))
-                    .size(Vec2::new(32.0, 32.0))
-                    .ui(&mut ui)
-                {
-                    item = it;
-                }
-            }
-
-            if Button::new("10")
-                .position(Vec2::new(viewport.x - 70.0, 10.0))
-                .size(Vec2::new(60.0, 30.0))
-                .ui(&mut ui)
-            {
-                max_number = 10;
-            }
-            if Button::new("100")
-                .position(Vec2::new(viewport.x - 70.0, 50.0))
-                .size(Vec2::new(60.0, 30.0))
-                .ui(&mut ui)
-            {
-                max_number = 100;
-            }
-        }
-
-        next_frame().await
-    }
-
-    Ok(())
+pub struct Game {
+    number: u16,
+    max_number: u16,
+    fruit: usize,
+    font: usize,
+    pending: Option<u16>,
+    cooldown: f32,
+    pointer: Option<Vec2>,
 }
-
-fn draw_items(number: i64, pos: Vec2, scale: f32, texture: &Texture2D, gap: bool) {
-    let padding = 0.1;
-    let width = {
-        let n = number.min(10);
-        padding * (n + if gap { 2 * (n / 5) } else { 0 }) as f32 + n as f32
-    };
-    for j in 0..=(number / 10) {
-        for i in 0..(number - j * 10).min(10) {
-            draw_texture_ex(
-                texture,
-                pos.x
-                    + scale
-                        * (-width / 2.0
-                            + padding * if gap { i + 2 * (i / 5) } else { 0 } as f32
-                            + i as f32),
-                pos.y + scale * (-0.5 + (1.0 + padding) * j as f32),
-                color::WHITE,
-                DrawTextureParams {
-                    dest_size: Some(Vec2::new(scale, scale)),
-                    ..Default::default()
-                },
-            );
+impl Game {
+    pub fn new() -> Self {
+        Self {
+            number: SmallRng::seed_from_u64(0xdeadbeef).random_range(1..=10),
+            max_number: 10,
+            fruit: 0,
+            font: 0,
+            pending: None,
+            cooldown: 0.0,
+            pointer: None,
         }
     }
+    fn apply(&mut self, add: i16) {
+        self.number = (self.pending.take().unwrap_or(self.number) as i16 + add)
+            .clamp(0, self.max_number as i16) as u16;
+    }
+    fn key(&mut self, key: Key) {
+        match key {
+            Key::Character(c @ '0'..='9') => {
+                let n = self.pending.unwrap_or(0) * 10 + (c as u16 - '0' as u16);
+                self.pending = Some(n.min(self.max_number));
+                self.cooldown = 4.0;
+                // Keep valid prefixes (1 -> 10 -> 100); commit when no further
+                // digit fits the selected range. Enter commits a shorter number.
+                if n == 0 || n * 10 > self.max_number {
+                    self.apply(0);
+                }
+            }
+            Key::Plus => self.apply(1),
+            Key::Minus => self.apply(-1),
+            Key::PageUp => self.apply(10),
+            Key::PageDown => self.apply(-10),
+            Key::Enter | Key::Space => self.apply(0),
+            Key::Backspace | Key::Delete => self.pending = None,
+            Key::Character('`') => self.font = 1 - self.font,
+            _ => {}
+        }
+    }
+    pub fn update(&mut self, input: &CanvasInput, dt: f32, size: Vec2) {
+        self.pointer = input.pointer;
+        self.cooldown = (self.cooldown - dt).max(0.0);
+        if self.cooldown == 0.0 || input.events.contains(&Event::Cancelled) {
+            self.pending = None;
+        }
+        for key in pressed_keys(input) {
+            self.key(key);
+        }
+        for pos in clicks(input) {
+            for i in 0..3 {
+                if contains(fruit_button(size, i), pos) {
+                    self.fruit = i;
+                }
+            }
+            for (i, max) in [10, 100].into_iter().enumerate() {
+                if contains(range_button(size, i), pos) {
+                    self.max_number = max;
+                    self.number = self.number.min(max);
+                    self.pending = None;
+                }
+            }
+        }
+    }
+    pub fn draw(&self, painter: &mut Painter<'_>) {
+        let size = painter.size;
+        let fruit = &FRUITS[self.fruit];
+        let top = size.y.min(50.0);
+        let height = (size.y - top).max(0.0);
+        let wide = self.max_number > 10 && size.x > size.y * 1.1;
+        let fruit_box = if wide {
+            rect(size.x * 0.03, top, size.x * 0.43, height)
+        } else {
+            rect(
+                size.x * 0.04,
+                top,
+                size.x * 0.92,
+                height * if self.max_number == 10 { 0.3 } else { 0.58 },
+            )
+        };
+        let rows = self.number.div_ceil(10).max(1);
+        let columns = self.number.clamp(1, 10);
+        let cell = (fruit_box.size.width / (columns as f32 * 1.1 + 0.4))
+            .min(fruit_box.size.height / (rows as f32 * 1.1));
+        let origin = Vec2::new(
+            fruit_box.center().x - cell * (columns as f32 * 1.1 + 0.2) / 2.0,
+            fruit_box.center().y - cell * rows as f32 * 1.1 / 2.0,
+        );
+        for i in 0..self.number {
+            let col = i % 10;
+            let gap = if col >= 5 { 0.2 } else { 0.0 };
+            painter.sprite(
+                fruit.sprite,
+                rect(
+                    origin.x + cell * (col as f32 * 1.1 + gap),
+                    origin.y + cell * (i / 10) as f32 * 1.1,
+                    cell,
+                    cell,
+                ),
+            );
+        }
+        let result = if wide {
+            rect(size.x * 0.54, top, size.x * 0.43, height)
+        } else {
+            rect(
+                size.x * 0.04,
+                fruit_box.max_y(),
+                size.x * 0.92,
+                size.y - fruit_box.max_y(),
+            )
+        };
+        let equals = if wide {
+            rect(size.x * 0.46, size.y * 0.4, size.x * 0.08, height * 0.2)
+        } else {
+            rect(
+                result.min_x(),
+                result.min_y(),
+                result.size.width,
+                result.size.height * 0.2,
+            )
+        };
+        painter.label("=", equals, height * 0.14, self.font, color::WHITE);
+        painter.label(
+            &self.number.to_string(),
+            rect(
+                result.min_x(),
+                result.min_y() + result.size.height * 0.3,
+                result.size.width,
+                result.size.height * 0.35,
+            ),
+            height * 0.26,
+            self.font,
+            color::WHITE,
+        );
+        if let Some(n) = self.pending {
+            painter.label(
+                &format!("{n}_"),
+                rect(
+                    result.min_x(),
+                    result.min_y() + result.size.height * 0.2,
+                    result.size.width,
+                    result.size.height * 0.1,
+                ),
+                height * 0.05,
+                self.font,
+                Vec3::splat(0.6),
+            );
+        }
+        painter.label(
+            &items_text(
+                i64::from(self.number),
+                fruit.stem,
+                fruit.endings,
+                fruit.gender,
+            ),
+            rect(
+                result.min_x(),
+                result.min_y() + result.size.height * 0.72,
+                result.size.width,
+                result.size.height * 0.2,
+            ),
+            height * 0.08,
+            0,
+            color::WHITE,
+        );
+        for (i, fruit) in FRUITS.iter().enumerate() {
+            let button = fruit_button(size, i);
+            let inner = painter.button(
+                button,
+                i == self.fruit,
+                self.pointer.is_some_and(|p| contains(button, p)),
+            );
+            painter.sprite(fruit.sprite, inner);
+        }
+        for (i, max) in [10, 100].into_iter().enumerate() {
+            let button = range_button(size, i);
+            painter.button(
+                button,
+                max == self.max_number,
+                self.pointer.is_some_and(|p| contains(button, p)),
+            );
+            painter.label(&max.to_string(), button, 24.0, 0, color::WHITE);
+        }
+    }
+}
+fn fruit_button(size: Vec2, i: usize) -> Rect<f32> {
+    let side = (size.x / 8.0).min(36.0).min(size.y * 0.1);
+    rect(4.0 + i as f32 * (side + 4.0), 4.0, side, side)
+}
+fn range_button(size: Vec2, i: usize) -> Rect<f32> {
+    let width = (size.x / 6.0).min(55.0);
+    rect(
+        size.x - (2 - i) as f32 * (width + 4.0),
+        4.0,
+        width,
+        36.0_f32.min(size.y * 0.1),
+    )
 }
 
 fn items_text(mut n: i64, stem: &str, endings: [&str; 3], gender: Gender) -> String {
@@ -319,7 +272,7 @@ fn items_text(mut n: i64, stem: &str, endings: [&str; 3], gender: Gender) -> Str
             words.push(
                 [
                     "десять",
-                    "одиинадцать",
+                    "одиннадцать",
                     "двенадцать",
                     "тринадцать",
                     "четырнадцать",
@@ -390,38 +343,65 @@ fn items_text(mut n: i64, stem: &str, endings: [&str; 3], gender: Gender) -> Str
     words.join(" ")
 }
 
-pub struct Game {
-    apple: Texture2D,
-}
-
-impl Game {
-    pub async fn new() -> Result<Self, Error> {
-        set_default_filter_mode(FilterMode::Nearest);
-        Ok(Self {
-            apple: load_texture("apple.png").await?,
-        })
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn entry_accepts_ten_and_one_hundred_and_clamps_adjustments() {
+        let mut game = Game::new();
+        for c in "10".chars() {
+            game.key(Key::Character(c));
+        }
+        assert_eq!(game.number, 10);
+        game.max_number = 100;
+        for c in "100".chars() {
+            game.key(Key::Character(c));
+        }
+        assert_eq!(game.number, 100);
+        assert_eq!(game.pending, None);
+        game.key(Key::Plus);
+        assert_eq!(game.number, 100);
+        game.key(Key::Character('2'));
+        game.key(Key::Enter);
+        assert_eq!(game.number, 2);
+        game.key(Key::PageDown);
+        assert_eq!(game.number, 0);
+        game.key(Key::PageUp);
+        assert_eq!(game.number, 10);
     }
-}
-
-impl crate::Game for Game {
-    fn name(&self) -> String {
-        "Считаем яблоки".to_owned()
+    #[test]
+    fn pending_entry_times_out_and_delete_cancels() {
+        let mut game = Game::new();
+        game.max_number = 100;
+        let original = game.number;
+        game.key(Key::Character('3'));
+        game.update(&CanvasInput::default(), 4.1, Vec2::new(800.0, 600.0));
+        assert_eq!(game.pending, None);
+        assert_eq!(game.number, original);
+        game.key(Key::Character('1'));
+        game.key(Key::Backspace);
+        assert_eq!(game.pending, None);
     }
-
-    fn draw_preview(&self, rect: Rect) {
-        draw_texture_ex(
-            &self.apple,
-            rect.x,
-            rect.y,
-            color::WHITE,
-            DrawTextureParams {
-                dest_size: Some(rect.size()),
-                ..Default::default()
-            },
-        );
-    }
-
-    fn launch(&self) -> Pin<Box<dyn Future<Output = Result<(), Error>>>> {
-        Box::pin(main())
+    #[test]
+    fn russian_numbers_and_endings() {
+        let phrase = |n, i: usize| {
+            let f = &FRUITS[i];
+            items_text(n, f.stem, f.endings, f.gender)
+        };
+        for (n, expected) in [
+            (0, "ноль яблок"),
+            (1, "одно яблоко"),
+            (2, "два яблока"),
+            (11, "одиннадцать яблок"),
+            (21, "двадцать одно яблоко"),
+            (100, "сто яблок"),
+        ] {
+            assert_eq!(phrase(n, 0), expected);
+        }
+        assert_eq!(phrase(1, 1), "одна груша");
+        assert_eq!(phrase(2, 1), "две груши");
+        assert_eq!(phrase(12, 1), "двенадцать груш");
+        assert_eq!(phrase(1, 2), "один апельсин");
+        assert_eq!(phrase(5, 2), "пять апельсинов");
     }
 }
