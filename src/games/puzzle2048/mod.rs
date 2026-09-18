@@ -1,4 +1,5 @@
-//! Sliding number puzzle. Settings start a new round; winning leaves play open.
+//! Sliding number puzzle. Size and merge rules start a new round; spawn policy
+//! changes apply to future tiles. Winning leaves play open.
 //! Input and drawing share one layout in logical pixels, including pointer swipes.
 pub mod model;
 mod view;
@@ -61,7 +62,10 @@ impl Game {
         match action {
             Action::Size(side) => settings.side = side,
             Action::Rule(rule) => settings.rule = rule,
-            Action::Spawn(spawn) => settings.spawn = spawn,
+            Action::Spawn(spawn) => {
+                self.board.set_spawn(spawn);
+                return;
+            }
             Action::Restart => self.board.reset(settings),
             Action::Undo => {
                 self.board.undo();

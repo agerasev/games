@@ -139,6 +139,11 @@ impl Board {
     pub fn settings(&self) -> Settings {
         self.settings
     }
+    /// Change future spawns without touching the board, random stream, or undo.
+    /// Undo restores turns while keeping the currently selected spawn policy.
+    pub fn set_spawn(&mut self, spawn: Spawn) {
+        self.settings.spawn = spawn;
+    }
     pub fn cells(&self) -> &[u64] {
         &self.state.cells
     }

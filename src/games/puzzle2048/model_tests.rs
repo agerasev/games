@@ -170,3 +170,34 @@ fn spawn_modes_only_produce_their_allowed_values() {
         }
     }
 }
+
+#[test]
+fn changing_spawn_policy_preserves_the_round_and_random_stream() {
+    for rule in [Rule::Classic, Rule::Fibonacci] {
+        let mut b = board(rule, &[rule.first(), rule.first(), 0, 0]);
+        b.step(Direction::Left).unwrap();
+        let before = b.state.clone();
+        let previous = b.history.last().unwrap().clone();
+        let history_len = b.history.len();
+        b.set_spawn(Spawn::SmallOnly);
+        assert_eq!(b.cells(), before.cells);
+        assert_eq!(b.score(), before.score);
+        assert_eq!(b.moves(), before.moves);
+        assert_eq!(b.history.len(), history_len);
+        assert_eq!(
+            b.state.rng.clone().random::<u64>(),
+            before.rng.clone().random::<u64>()
+        );
+        assert!(b.undo());
+        assert_eq!(b.cells(), previous.cells);
+        assert_eq!(b.settings().spawn, Spawn::SmallOnly);
+        let turn = b.step(Direction::Left).unwrap();
+        assert_eq!(b.cells()[turn.spawned], rule.first());
+        assert!(b.undo());
+        b.set_spawn(Spawn::Mixed);
+        b.step(Direction::Left).unwrap();
+        assert_eq!(b.cells(), before.cells);
+        assert_eq!(b.score(), before.score);
+        assert_eq!(b.moves(), before.moves);
+    }
+}

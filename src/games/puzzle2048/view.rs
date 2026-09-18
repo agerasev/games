@@ -416,12 +416,14 @@ pub(super) fn draw(game: &Game, painter: &mut Painter<'_>) {
             Vec3::splat(0.85)
         },
     );
+    let spawn_hint = if settings.spawn == Spawn::Mixed {
+        let first = settings.rule.first();
+        format!("Новые: {first} — 90%, {} — 10%", first * 2)
+    } else {
+        format!("Новые: только {}. Поле сохраняется.", settings.rule.first())
+    };
     painter.label(
-        if settings.spawn == Spawn::Mixed {
-            "Новые плитки: 90% / 10%. Правила сбросят игру."
-        } else {
-            "Выбор размера или правил начнёт новую игру."
-        },
+        &spawn_hint,
         layout.panel_row(0.0, 187.0, layout.panel.size.width, 18.0),
         11.0,
         0,

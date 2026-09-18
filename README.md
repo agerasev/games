@@ -50,8 +50,10 @@ Each tile merges at most once per move. A successful move creates one new tile;
 a blocked move creates none. The score increases by the values created by merges.
 Reaching **2048** or **2584** marks the goal, and play continues until no moves
 remain. Undo restores the board, score, move count, and random state, so replaying
-the same move produces the same spawn. Undo can be repeated back to the start of
-the round. Changing size, merge rules, or spawn rules starts a fresh round.
+the same move with the same spawn rule produces the same spawn. Undo can be
+repeated back to the start of the round. Changing size or merge rules starts a
+fresh round. Changing spawn rules only affects future tiles, preserving the board,
+score, and undo history; undo keeps the currently selected spawn rule.
 Rounds and undo history last until leaving the game; they are not saved to disk.
 
 ## Browser (WebGL2)

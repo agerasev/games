@@ -20,6 +20,86 @@ fn pointer(pressed: bool, position: Vec2) -> Event {
 }
 const SIZE: Vec2 = Vec2::new(400.0, 720.0);
 #[test]
+fn default_game_spawns_both_values_without_toggling_settings() {
+    let mut large = 0;
+    let mut total = 0;
+    let mut initial_large = 0;
+    for seed in 0..128 {
+        let mut game = Game::with_seed(seed);
+        assert_eq!(game.board.settings().spawn, Spawn::Mixed);
+        initial_large += game.board.cells().iter().filter(|&&v| v == 4).count();
+        for keycode in [
+            Key::ArrowLeft,
+            Key::ArrowDown,
+            Key::ArrowRight,
+            Key::ArrowUp,
+        ]
+        .into_iter()
+        .cycle()
+        .take(24)
+        {
+            game.update(&input(vec![key(keycode)]), SLIDE + POP, SIZE);
+            if let Some(animation) = &game.animation {
+                // Inspect only the new tile, excluding 4s created by merges.
+                let value = game.board.cells()[animation.turn.spawned];
+                assert!(matches!(value, 2 | 4));
+                large += usize::from(value == 4);
+                total += 1;
+            }
+        }
+    }
+    assert!(initial_large > 0);
+    assert!(total > 1000);
+    // Fixed seeds keep the test repeatable; generous bounds check the 90/10
+    // policy without tying it to an exact sequence from the RNG implementation.
+    assert!(large > total / 20 && large < total / 5, "{large}/{total}");
+}
+
+#[test]
+fn spawn_controls_preserve_animation_buffered_moves_and_undo() {
+    let mut game = Game::with_seed(3);
+    game.update(
+        &input(vec![key(Key::ArrowRight), key(Key::ArrowDown)]),
+        0.0,
+        SIZE,
+    );
+    let before = game.board.cells().to_vec();
+    let score = game.board.score();
+    let moves = game.board.moves();
+    let pending = game.pending.clone();
+    let elapsed = game.animation.as_ref().unwrap().elapsed;
+    game.update(&input(vec![key(Key::Character('t'))]), 0.0, SIZE);
+    assert_eq!(game.board.settings().spawn, Spawn::SmallOnly);
+    assert_eq!(game.board.cells(), before);
+    assert_eq!(game.board.score(), score);
+    assert_eq!(game.board.moves(), moves);
+    assert!(game.board.can_undo());
+    assert_eq!(game.pending, pending);
+    assert_eq!(game.animation.as_ref().unwrap().elapsed, elapsed);
+
+    let control = view::Layout::new(SIZE)
+        .controls(game.board.settings())
+        .into_iter()
+        .find(|c| matches!(c.action, Action::Spawn(Spawn::Mixed)))
+        .unwrap();
+    game.update(
+        &input(vec![pointer(
+            true,
+            Vec2::from_array(control.rect.center().to_array()),
+        )]),
+        0.0,
+        SIZE,
+    );
+    assert_eq!(game.board.settings().spawn, Spawn::Mixed);
+    assert_eq!(game.board.cells(), before);
+    assert_eq!(game.board.score(), score);
+    assert_eq!(game.board.moves(), moves);
+    assert!(game.board.can_undo());
+    assert_eq!(game.pending, pending);
+    assert_eq!(game.animation.as_ref().unwrap().elapsed, elapsed);
+}
+
+#[test]
 fn swipe_matches_keyboard_and_cancellation_aborts_stale_input() {
     let mut swipe = Game::with_seed(3);
     let mut keyboard = Game::with_seed(3);
@@ -66,14 +146,12 @@ fn undo_during_animation_clears_buffered_moves_and_settings_restart_cleanly() {
     assert!(game.animation.is_none());
     assert!(game.pending.is_empty());
     game.update(
-        &input(vec![
-            key(Key::Character('6')),
-            key(Key::Character('f')),
-            key(Key::Character('t')),
-        ]),
+        &input(vec![key(Key::Character('6')), key(Key::Character('f'))]),
         0.0,
         SIZE,
     );
+    let initial = game.board.cells().to_vec();
+    game.update(&input(vec![key(Key::Character('t'))]), 0.0, SIZE);
     assert_eq!(
         game.board.settings(),
         Settings {
@@ -82,9 +160,11 @@ fn undo_during_animation_clears_buffered_moves_and_settings_restart_cleanly() {
             spawn: Spawn::SmallOnly
         }
     );
-    assert_eq!(game.board.cells().iter().filter(|&&v| v == 1).count(), 2);
+    assert_eq!(game.board.cells(), initial);
     assert_eq!(game.board.moves(), 0);
     assert!(!game.board.can_undo());
+    game.update(&input(vec![key(Key::Character('r'))]), 0.0, SIZE);
+    assert_eq!(game.board.cells().iter().filter(|&&v| v == 1).count(), 2);
 }
 #[test]
 fn controls_are_inside_supported_layouts_and_click_selects_settings() {
