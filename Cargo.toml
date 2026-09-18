@@ -10,6 +10,7 @@ desktop = ["wgame/desktop", "wgame-egui/desktop"]
 web = ["wgame/web", "wgame-egui/web"]
 
 [dependencies]
+phy = { path = "phy" }
 wgame-egui = { path = "wgame/wgame-egui", default-features = false }
 wgame = { path = "wgame/wgame", default-features = false, features = ["shapes", "image", "typography"] }
 rand = { version = "0.9.2", default-features = false, features = ["alloc", "small_rng"] }

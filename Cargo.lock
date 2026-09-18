@@ -1141,6 +1141,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e762b9b188634fc508d4ec54b62ea3d352c43fd431d18d05d46f559f217f4725"
 dependencies = [
  "bytemuck",
+ "libm",
 ]
 
 [[package]]
@@ -2188,6 +2189,14 @@ name = "percent-encoding"
 version = "2.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
+
+[[package]]
+name = "phy"
+version = "0.2.0"
+dependencies = [
+ "glam",
+ "libm",
+]
 
 [[package]]
 name = "pin-project"
@@ -4174,6 +4183,7 @@ version = "0.1.0"
 dependencies = [
  "euclid",
  "futures",
+ "phy",
  "rand",
  "rand_distr",
  "web-time",

@@ -1,5 +1,6 @@
 mod apples;
 mod letters;
+pub mod moon_lander;
 mod mouse;
 pub mod puzzle2048;
 

@@ -1,3 +1,6 @@
 [submodule "wgame"]
 	path = wgame
 	url = https://github.com/agerasev/wgame.git
+[submodule "phy"]
+	path = phy
+	url = https://github.com/agerasev/phy.git
