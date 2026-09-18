@@ -1,7 +1,9 @@
+use std::{cell::RefCell, rc::Rc};
 use wgame::{
     Library, Result, Window, WindowHost, app::time::Instant, canvas::Event, gfx::types::color,
     glam::Vec2, prelude::*,
 };
+use wgame_egui::EguiWindow;
 use yarik_games::{
     App,
     draw::{Assets, Painter},
@@ -10,7 +12,20 @@ use yarik_games::{
 
 #[wgame::window(title = "Games", logical_size = (1280.0, 720.0), resizable = true, vsync = true)]
 async fn main(window: Window<'_>) -> Result<()> {
-    run(window).await
+    let (start, smoke) = options()?;
+    let app = Rc::new(RefCell::new(App::new(start)));
+    let actions = Rc::new(RefCell::new(yarik_games::ui::Actions::default()));
+    let mut host = EguiWindow::new(window, {
+        let app = app.clone();
+        let actions = actions.clone();
+        move |ui, canvas: &wgame_egui::Canvas| {
+            let layout = app.borrow().ui(ui, |ui| canvas.show(ui));
+            actions.borrow_mut().collect(layout.actions);
+            layout.canvas
+        }
+    });
+    yarik_games::ui::configure(host.context());
+    run(&mut host, &app, &actions, smoke).await
 }
 
 fn options() -> Result<(Option<GameId>, bool)> {
@@ -37,11 +52,14 @@ fn options() -> Result<(Option<GameId>, bool)> {
     }
 }
 
-async fn run(mut host: impl WindowHost) -> Result<()> {
-    let (start, smoke) = options()?;
+async fn run(
+    host: &mut impl WindowHost,
+    app: &RefCell<App>,
+    actions: &RefCell<yarik_games::ui::Actions>,
+    smoke: bool,
+) -> Result<()> {
     let lib = Library::new(host.graphics());
     let mut assets = Assets::new(&lib)?;
-    let mut app = App::new(start);
     let mut last = Instant::now();
     let mut frames = 0;
     while let Some(mut frame) = host.next_frame().await? {
@@ -59,7 +77,9 @@ async fn run(mut host: impl WindowHost) -> Result<()> {
         last = now;
         let (width, height) = frame.logical_size();
         let size = Vec2::new(width as f32, height as f32);
-        if !app.update(frame.input(), dt, size) {
+        let mut app = app.borrow_mut();
+        let (consumed, running) = app.apply_ui(std::mem::take(&mut *actions.borrow_mut()));
+        if !running || (!consumed && !app.update(frame.input(), dt, size)) {
             frame.discard();
             break;
         }

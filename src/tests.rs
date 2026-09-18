@@ -45,32 +45,6 @@ fn every_game_launches_and_returns_to_menu() {
 }
 
 #[test]
-fn pointer_launch_and_back_use_logical_coordinates_after_resize() {
-    for size in [Vec2::new(1280.0, 720.0), Vec2::new(320.0, 640.0)] {
-        let mut app = App::new(None);
-        for (id, cell) in
-            GameId::ALL
-                .into_iter()
-                .zip(grid(content_size(size), GameId::ALL.len(), MENU_ASPECT))
-        {
-            let click = |pos| Event::Button {
-                button: Button::Primary,
-                pressed: true,
-                position: pos,
-            };
-            app.update(
-                &input([click(Vec2::from_array(cell.center().to_array()))]),
-                0.0,
-                size,
-            );
-            assert_eq!(app.active_id(), Some(id));
-            app.update(&input([click(Vec2::new(40.0, size.y - 20.0))]), 0.0, size);
-            assert_eq!(app.active_id(), None);
-        }
-    }
-}
-
-#[test]
 fn cancellation_does_not_activate_a_stale_click_or_key() {
     let mut app = App::new(None);
     let events = [
