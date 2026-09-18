@@ -2,6 +2,7 @@
 //! changes apply to future tiles. Winning leaves play open.
 //! Input and drawing share one layout in logical pixels, including pointer swipes.
 pub mod model;
+mod ui;
 mod view;
 
 use crate::{current_events, draw::Painter, layout::contains};
@@ -18,8 +19,8 @@ struct Animation {
     turn: Turn,
     elapsed: f32,
 }
-#[derive(Clone, Copy)]
-enum Action {
+#[derive(Clone, Copy, PartialEq)]
+pub(crate) enum Action {
     Size(usize),
     Rule(Rule),
     Spawn(Spawn),
@@ -31,7 +32,6 @@ pub struct Game {
     animation: Option<Animation>,
     pending: VecDeque<Direction>,
     swipe: Option<Vec2>,
-    pointer: Option<Vec2>,
     last_size: Vec2,
 }
 impl Default for Game {
@@ -53,11 +53,10 @@ impl Game {
             animation: None,
             pending: VecDeque::new(),
             swipe: None,
-            pointer: None,
             last_size: Vec2::ZERO,
         }
     }
-    fn action(&mut self, action: Action) {
+    pub(crate) fn action(&mut self, action: Action) {
         let mut settings = self.board.settings();
         match action {
             Action::Size(side) => settings.side = side,
@@ -87,7 +86,6 @@ impl Game {
         }
     }
     pub fn update(&mut self, input: &CanvasInput, dt: f32, size: Vec2) {
-        self.pointer = input.pointer;
         if size != self.last_size || input.events.contains(&Event::Cancelled) {
             self.swipe = None;
             self.pending.clear();
@@ -152,13 +150,7 @@ impl Game {
                 } => {
                     if pressed {
                         self.swipe = None;
-                        if let Some(control) = layout
-                            .controls(self.board.settings())
-                            .iter()
-                            .find(|c| contains(c.rect, position))
-                        {
-                            self.action(control.action);
-                        } else if contains(layout.board, position) {
+                        if contains(layout.board, position) {
                             self.swipe = Some(position);
                         }
                     } else if let Some(start) = self.swipe.take() {
@@ -190,6 +182,9 @@ impl Game {
                 self.animation = Some(Animation { turn, elapsed: 0.0 });
             }
         }
+    }
+    pub fn board(&self) -> &Board {
+        &self.board
     }
     pub fn draw(&self, painter: &mut Painter<'_>) {
         view::draw(self, painter);

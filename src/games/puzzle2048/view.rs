@@ -1,11 +1,5 @@
-use super::{
-    Action, Game, POP, SLIDE,
-    model::{Rule, Settings, Spawn},
-};
-use crate::{
-    draw::Painter,
-    layout::{contains, rect},
-};
+use super::{Game, POP, SLIDE, model::Rule};
+use crate::{draw::Painter, layout::rect};
 use euclid::default::Rect;
 use wgame::{
     gfx::types::color,
@@ -15,135 +9,14 @@ use wgame::{
 
 pub(super) struct Layout {
     pub board: Rect<f32>,
-    panel: Rect<f32>,
-    margin: f32,
-}
-pub(super) struct Control {
-    pub rect: Rect<f32>,
-    pub action: Action,
-    label: String,
-    selected: bool,
 }
 impl Layout {
     pub fn new(size: Vec2) -> Self {
-        let margin = (size.x * 0.035).clamp(4.0, 24.0);
-        let wide = size.x >= 560.0 && size.x >= size.y * 1.15;
-        let (board, panel) = if wide {
-            let panel_width = (size.x * 0.35).clamp(210.0, 302.0);
-            let panel_y = 134.0_f32.min((size.y - 220.0).max(88.0));
-            let area = Vec2::new(size.x - panel_width - margin * 3.0, size.y - 108.0);
-            let side = area.min_element().max(1.0);
-            (
-                rect(
-                    margin + (area.x - side) / 2.0,
-                    88.0 + (area.y - side) / 2.0,
-                    side,
-                    side,
-                ),
-                rect(
-                    size.x - margin - panel_width,
-                    panel_y,
-                    panel_width,
-                    (size.y - panel_y - 12.0).clamp(1.0, 208.0),
-                ),
-            )
-        } else {
-            let side = (size.x - margin * 2.0).min(size.y - 322.0).max(1.0);
-            let board = rect((size.x - side) / 2.0, 90.0, side, side);
-            (
-                board,
-                rect(margin, board.max_y() + 12.0, size.x - margin * 2.0, 208.0),
-            )
-        };
+        let margin = (size.min_element() * 0.035).clamp(0.0, 24.0);
+        let side = (size.min_element() - margin * 2.0).max(0.0);
         Self {
-            board,
-            panel,
-            margin,
+            board: rect((size.x - side) / 2.0, (size.y - side) / 2.0, side, side),
         }
-    }
-    fn panel_row(&self, x: f32, y: f32, width: f32, height: f32) -> Rect<f32> {
-        let scale = self.panel.size.height / 208.0;
-        rect(
-            self.panel.min_x() + x,
-            self.panel.min_y() + y * scale,
-            width,
-            height * scale,
-        )
-    }
-    pub fn controls(&self, settings: Settings) -> Vec<Control> {
-        let mut result = Vec::new();
-        let label_width = self.panel.size.width * 0.27;
-        let width = self.panel.size.width - label_width;
-        let mut row = |y: f32, items: Vec<(String, Action, bool)>| {
-            let count = items.len();
-            for (i, (label, action, selected)) in items.into_iter().enumerate() {
-                let step = width / count as f32;
-                result.push(Control {
-                    rect: self.panel_row(
-                        label_width + i as f32 * step,
-                        y,
-                        (step - 4.0).max(0.0),
-                        32.0,
-                    ),
-                    action,
-                    label,
-                    selected,
-                });
-            }
-        };
-        row(
-            0.0,
-            (3..=6)
-                .map(|n| (format!("{n}x{n}"), Action::Size(n), settings.side == n))
-                .collect(),
-        );
-        row(
-            40.0,
-            vec![
-                (
-                    "2048".into(),
-                    Action::Rule(Rule::Classic),
-                    settings.rule == Rule::Classic,
-                ),
-                (
-                    "Фибо".into(),
-                    Action::Rule(Rule::Fibonacci),
-                    settings.rule == Rule::Fibonacci,
-                ),
-            ],
-        );
-        let first = settings.rule.first();
-        row(
-            80.0,
-            vec![
-                (
-                    format!("Только {first}"),
-                    Action::Spawn(Spawn::SmallOnly),
-                    settings.spawn == Spawn::SmallOnly,
-                ),
-                (
-                    format!("{first} и {}", first * 2),
-                    Action::Spawn(Spawn::Mixed),
-                    settings.spawn == Spawn::Mixed,
-                ),
-            ],
-        );
-        for (i, (label, action)) in [
-            ("Заново / R", Action::Restart),
-            ("Отмена / U", Action::Undo),
-        ]
-        .into_iter()
-        .enumerate()
-        {
-            let width = self.panel.size.width / 2.0;
-            result.push(Control {
-                rect: self.panel_row(i as f32 * width, 123.0, width - 4.0, 34.0),
-                action,
-                label: label.into(),
-                selected: false,
-            });
-        }
-        result
     }
     fn cell(&self, side: usize, index: usize) -> Rect<f32> {
         let padding = self.board.size.width * 0.025;
@@ -258,57 +131,6 @@ pub(super) fn draw(game: &Game, painter: &mut Painter<'_>) {
         rect(0.0, 0.0, size.x, size.y),
         Vec3::new(0.025, 0.043, 0.065),
     );
-    let title_width = (size.x * 0.36).min(300.0);
-    painter.label(
-        if settings.rule == Rule::Classic {
-            "2048"
-        } else {
-            "Фибо"
-        },
-        rect(layout.margin, 8.0, title_width, 47.0),
-        42.0,
-        0,
-        color::WHITE,
-    );
-    let metrics_width = (size.x - title_width - layout.margin * 3.0).min(302.0);
-    for (i, (label, value)) in [("СЧЁТ", game.board.score()), ("ХОДЫ", game.board.moves())]
-        .into_iter()
-        .enumerate()
-    {
-        let step = metrics_width / 2.0;
-        let x = size.x - layout.margin - metrics_width + i as f32 * step;
-        rounded(
-            painter,
-            rect(x, 8.0, step - 5.0, 50.0),
-            6.0,
-            Vec3::new(0.08, 0.13, 0.18),
-        );
-        painter.label(
-            label,
-            rect(x + 3.0, 10.0, step - 11.0, 15.0),
-            11.0,
-            0,
-            Vec3::splat(0.65),
-        );
-        painter.label(
-            &value.to_string(),
-            rect(x + 3.0, 25.0, step - 11.0, 29.0),
-            23.0,
-            0,
-            color::WHITE,
-        );
-    }
-    painter.label(
-        if settings.rule == Rule::Classic {
-            "Равные числа соединяются. Цель: 2048"
-        } else {
-            "1+1=2, 1+2=3, 2+3=5... Цель: 2584"
-        },
-        rect(layout.margin, 63.0, size.x - 2.0 * layout.margin, 19.0),
-        15.0,
-        0,
-        Vec3::new(0.55, 0.72, 0.81),
-    );
     rounded(
         painter,
         layout.board.translate((0.0, 5.0).into()),
@@ -370,65 +192,6 @@ pub(super) fn draw(game: &Game, painter: &mut Painter<'_>) {
             );
         }
     }
-    for control in layout.controls(settings) {
-        let enabled = !matches!(control.action, Action::Undo) || game.board.can_undo();
-        painter.button(
-            control.rect,
-            control.selected,
-            enabled && game.pointer.is_some_and(|p| contains(control.rect, p)),
-        );
-        painter.label(
-            &control.label,
-            control.rect.inflate(-3.0, -3.0),
-            16.0,
-            0,
-            if enabled { Vec3::ONE } else { Vec3::splat(0.4) },
-        );
-    }
-    for (label, y) in [
-        ("Поле / 3-6", 0.0),
-        ("Правила / F", 40.0),
-        ("Новые / T", 80.0),
-    ] {
-        painter.label(
-            label,
-            layout.panel_row(0.0, y, layout.panel.size.width * 0.27 - 5.0, 32.0),
-            13.0,
-            0,
-            Vec3::new(0.58, 0.70, 0.77),
-        );
-    }
-    let status = if !game.board.can_move() {
-        "Нет ходов. Отмена или новая игра."
-    } else if game.board.won() {
-        "Цель достигнута! Игра продолжается."
-    } else {
-        "Стрелки / WASD или свайп по полю"
-    };
-    painter.label(
-        status,
-        layout.panel_row(0.0, 162.0, layout.panel.size.width, 20.0),
-        14.0,
-        0,
-        if game.board.won() {
-            Vec3::new(0.4, 0.95, 0.65)
-        } else {
-            Vec3::splat(0.85)
-        },
-    );
-    let spawn_hint = if settings.spawn == Spawn::Mixed {
-        let first = settings.rule.first();
-        format!("Новые: {first} — 90%, {} — 10%", first * 2)
-    } else {
-        format!("Новые: только {}. Поле сохраняется.", settings.rule.first())
-    };
-    painter.label(
-        &spawn_hint,
-        layout.panel_row(0.0, 187.0, layout.panel.size.width, 18.0),
-        11.0,
-        0,
-        Vec3::splat(0.5),
-    );
     if !game.board.can_move() && game.animation.is_none() {
         let b = layout.board;
         painter.rectangle(b, Vec4::new(0.02, 0.03, 0.05, 0.78));

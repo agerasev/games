@@ -1,12 +1,12 @@
 //! Egui owns controls; the canvas owns game input and drawing. Layout is read-only
-//! with respect to game state. Collect and deduplicate actions across passes, then apply them
-//! once, after `EguiWindow::next_frame`, before updating the simulation.
-use crate::{App, games::GameId};
+//! with respect to game state. Collect and deduplicate actions across passes,
+//! then apply them once, after `EguiWindow::next_frame`, before simulation.
+use crate::App;
 use wgame_egui::egui;
 
 #[derive(PartialEq)]
 enum Action {
-    Launch(GameId),
+    Game(crate::games::Action),
     Back,
     Quit,
 }
@@ -67,58 +67,40 @@ impl App {
                         actions.0.push(Action::Back);
                     }
                     ui.heading(id.title());
-                    ui.label("?").on_hover_text(id.hint());
+                    ui.menu_button("Помощь", |ui| {
+                        ui.set_max_width(280.0);
+                        ui.label(id.hint());
+                        ui.label("Щёлкните по полю, чтобы вернуть управление с клавиатуры.");
+                    });
                 } else {
                     ui.heading("Игры");
+                    ui.label("Выберите игру / 1–4 / стрелки и Enter");
                     if ui.button("Выход / Esc").clicked() {
                         actions.0.push(Action::Quit);
                     }
                 }
             });
         });
-        let response = egui::CentralPanel::default()
-            .frame(egui::Frame::NONE)
-            .show(ui, |ui| {
-                if self.active.is_none() {
-                    let size = ui.available_size();
-                    ui.allocate_ui(egui::vec2(size.x, (size.y - 1.0).max(0.0)), |ui| {
-                        egui::ScrollArea::vertical().show(ui, |ui| {
-                            ui.add_space(16.0);
-                            ui.label("Выберите игру / 1–4 / стрелки и Enter");
-                            ui.add_space(12.0);
-                            let columns = if ui.available_width() >= 600.0 { 2 } else { 1 };
-                            let width = (ui.available_width() / columns as f32 - 8.0).max(1.0);
-                            egui::Grid::new("games")
-                                .spacing(egui::vec2(8.0, 8.0))
-                                .show(ui, |ui| {
-                                    for (index, id) in GameId::ALL.into_iter().enumerate() {
-                                        if ui
-                                            .add_sized(
-                                                [width, 84.0],
-                                                egui::Button::selectable(
-                                                    self.selection == index,
-                                                    format!("{}. {}", index + 1, id.title()),
-                                                )
-                                                .wrap(),
-                                            )
-                                            .clicked()
-                                        {
-                                            actions.0.push(Action::Launch(id));
-                                        }
-                                        if (index + 1) % columns == 0 {
-                                            ui.end_row();
-                                        }
-                                    }
-                                });
+        if let Some(game) = &self.active {
+            let max_height = (ui.available_height() * 0.5).max(40.0);
+            egui::Frame::side_top_panel(ui.style()).show(ui, |ui| {
+                ui.set_min_width(ui.available_width());
+                egui::ScrollArea::vertical()
+                    .max_height(max_height)
+                    .show(ui, |ui| {
+                        ui.push_id(game.id().slug(), |ui| {
+                            actions
+                                .0
+                                .extend(game.controls(ui).into_iter().map(Action::Game));
                         });
                     });
-                }
-                canvas(ui)
-            })
+            });
+        }
+        let response = egui::CentralPanel::default()
+            .frame(egui::Frame::NONE)
+            .show(ui, canvas)
             .inner;
-        // Return focus after a control action; its triggering input is consumed
-        // by apply_ui, so it cannot also perform a move in the new round.
-        if !actions.0.is_empty() || ui.memory(|m| m.focused().is_none()) {
+        if self.focus_canvas {
             response.request_focus();
         }
         Layout {
@@ -131,11 +113,13 @@ impl App {
     /// was consumed by a control, and whether the application should keep running.
     pub fn apply_ui(&mut self, actions: Actions) -> (bool, bool) {
         let consumed = !actions.0.is_empty();
+        self.focus_canvas = consumed;
         for action in actions.0 {
             match action {
-                Action::Launch(id) => {
-                    self.selection = GameId::ALL.iter().position(|&item| item == id).unwrap();
-                    self.active = Some(crate::games::Game::new(id));
+                Action::Game(action) => {
+                    if let Some(game) = &mut self.active {
+                        game.action(action);
+                    }
                 }
                 Action::Back => self.active = None,
                 Action::Quit => return (true, false),

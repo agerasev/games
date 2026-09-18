@@ -6,12 +6,16 @@ pub mod layout;
 
 pub mod ui;
 
-use draw::Painter;
+use draw::{Painter, Sprite};
 use games::{Game, GameId};
+use layout::{contains, grid, rect};
 use wgame::{
     canvas::{Button, CanvasInput, Event, Key},
-    glam::Vec2,
+    gfx::types::color,
+    glam::{Vec2, Vec3},
 };
+
+const MENU_ASPECT: f32 = 1.8;
 
 fn current_events(input: &CanvasInput) -> &[Event] {
     let start = input
@@ -51,12 +55,16 @@ pub fn clicks(input: &CanvasInput) -> impl Iterator<Item = Vec2> + '_ {
 pub struct App {
     active: Option<Game>,
     selection: usize,
+    pointer: Option<Vec2>,
+    focus_canvas: bool,
 }
 impl App {
     pub fn new(game: Option<GameId>) -> Self {
         Self {
             active: game.map(Game::new),
             selection: 0,
+            pointer: None,
+            focus_canvas: true,
         }
     }
     pub fn active_id(&self) -> Option<GameId> {
@@ -64,7 +72,9 @@ impl App {
     }
     /// Returns false when Escape is pressed in the launcher.
     pub fn update(&mut self, input: &CanvasInput, dt: f32, size: Vec2) -> bool {
+        self.pointer = input.pointer;
         if pressed_keys(input).any(|key| key == Key::Escape) {
+            self.focus_canvas = true;
             return self.active.take().is_some();
         }
         if let Some(game) = &mut self.active {
@@ -85,7 +95,16 @@ impl App {
                     _ => {}
                 }
             }
+            for pos in clicks(input) {
+                if let Some(index) = grid(size, GameId::ALL.len(), MENU_ASPECT)
+                    .iter()
+                    .position(|&cell| contains(cell, pos))
+                {
+                    launch = Some(index);
+                }
+            }
             if let Some(index) = launch {
+                self.focus_canvas = true;
                 self.selection = index;
                 self.active = Some(Game::new(GameId::ALL[index]));
             }
@@ -95,6 +114,53 @@ impl App {
     pub fn draw(&self, painter: &mut Painter<'_>) {
         if let Some(game) = &self.active {
             game.draw(painter);
+        } else {
+            for (index, (id, cell)) in GameId::ALL
+                .into_iter()
+                .zip(grid(painter.size, GameId::ALL.len(), MENU_ASPECT))
+                .enumerate()
+            {
+                let cell = cell.inflate(
+                    -cell.size.width.min(8.0) / 2.0,
+                    -cell.size.height.min(8.0) / 2.0,
+                );
+                let hovered = self.pointer.is_some_and(|p| contains(cell, p));
+                painter.button(cell, self.selection == index, hovered);
+                let side = (cell.size.height * 0.7).min(cell.size.width * 0.7);
+                let preview = rect(
+                    cell.center().x - side / 2.0,
+                    cell.min_y() + cell.size.height * 0.04,
+                    side,
+                    side,
+                );
+                match id {
+                    GameId::Apples => painter.sprite(Sprite::Apple, preview),
+                    GameId::Letters => painter.label("А а", preview, side * 0.6, 0, color::RED),
+                    GameId::Puzzle2048 => {
+                        painter.rectangle(preview, Vec3::new(0.17, 0.43, 0.62));
+                        painter.label("2048", preview, side * 0.3, 0, color::WHITE);
+                    }
+                    GameId::Mouse => {
+                        painter.sprite(Sprite::Mouse, preview);
+                        painter.sprite(
+                            Sprite::Cheese,
+                            rect(preview.min_x(), preview.center().y, side / 2.0, side / 2.0),
+                        );
+                    }
+                }
+                painter.label(
+                    &format!("{}. {}", index + 1, id.title()),
+                    rect(
+                        cell.min_x() + 8.0,
+                        cell.max_y() - cell.size.height * 0.2,
+                        cell.size.width - 16.0,
+                        cell.size.height * 0.16,
+                    ),
+                    30.0,
+                    0,
+                    color::WHITE,
+                );
+            }
         }
     }
 }

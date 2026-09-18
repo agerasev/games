@@ -51,6 +51,14 @@ impl GameId {
         }
     }
 }
+#[derive(PartialEq)]
+pub(crate) enum Action {
+    Apples(apples::Action),
+    Letters(letters::Action),
+    MouseRestart,
+    Puzzle2048(puzzle2048::Action),
+}
+
 pub enum Game {
     Apples(apples::Game),
     Letters(letters::Game),
@@ -74,10 +82,37 @@ impl Game {
             Self::Puzzle2048(_) => GameId::Puzzle2048,
         }
     }
+    pub(crate) fn action(&mut self, action: Action) {
+        match (self, action) {
+            (Self::Apples(game), Action::Apples(action)) => game.action(action),
+            (Self::Letters(game), Action::Letters(action)) => game.action(action),
+            (Self::Mouse(game), Action::MouseRestart) => game.restart(),
+            (Self::Puzzle2048(game), Action::Puzzle2048(action)) => game.action(action),
+            _ => {}
+        }
+    }
+    pub(crate) fn controls(&self, ui: &mut wgame_egui::egui::Ui) -> Vec<Action> {
+        match self {
+            Self::Apples(game) => game.controls(ui).into_iter().map(Action::Apples).collect(),
+            Self::Letters(game) => game.controls(ui).into_iter().map(Action::Letters).collect(),
+            Self::Mouse(game) => {
+                if game.controls(ui) {
+                    vec![Action::MouseRestart]
+                } else {
+                    Vec::new()
+                }
+            }
+            Self::Puzzle2048(game) => game
+                .controls(ui)
+                .into_iter()
+                .map(Action::Puzzle2048)
+                .collect(),
+        }
+    }
     pub fn update(&mut self, input: &CanvasInput, dt: f32, size: Vec2) {
         match self {
-            Self::Apples(game) => game.update(input, dt, size),
-            Self::Letters(game) => game.update(input, size),
+            Self::Apples(game) => game.update(input, dt),
+            Self::Letters(game) => game.update(input),
             Self::Mouse(game) => game.update(input, dt),
             Self::Puzzle2048(game) => game.update(input, dt, size),
         }

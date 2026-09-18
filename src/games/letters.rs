@@ -1,13 +1,7 @@
-use crate::{
-    clicks,
-    draw::{Painter, Sprite},
-    layout::{contains, grid, rect},
-    pressed_keys,
-};
+use crate::{draw::Painter, layout::grid, pressed_keys};
 use wgame::{
     canvas::{CanvasInput, Key},
     gfx::types::color,
-    glam::Vec2,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -33,15 +27,49 @@ impl Letter {
     }
 }
 
+#[derive(Clone, Copy, PartialEq)]
+pub(crate) enum Action {
+    Alphabet(usize),
+    Font(usize),
+}
+
 #[derive(Default)]
 pub struct Game {
     language: usize,
     font: usize,
-    pointer: Option<Vec2>,
 }
 impl Game {
-    pub fn update(&mut self, input: &CanvasInput, size: Vec2) {
-        self.pointer = input.pointer;
+    pub(crate) fn action(&mut self, action: Action) {
+        match action {
+            Action::Alphabet(index) => self.language = index,
+            Action::Font(index) => self.font = index,
+        }
+    }
+    pub(crate) fn controls(&self, ui: &mut wgame_egui::egui::Ui) -> Vec<Action> {
+        let mut actions = Vec::new();
+        ui.horizontal_wrapped(|ui| {
+            for (index, label) in ["Русский", "English", "Ελληνικά", "123"]
+                .into_iter()
+                .enumerate()
+            {
+                if ui.selectable_label(self.language == index, label).clicked() {
+                    actions.push(Action::Alphabet(index));
+                }
+            }
+        });
+        ui.collapsing("Шрифт", |ui| {
+            ui.horizontal_wrapped(|ui| {
+                for (index, label) in ["Без засечек", "С засечками"].into_iter().enumerate()
+                {
+                    if ui.selectable_label(self.font == index, label).clicked() {
+                        actions.push(Action::Font(index));
+                    }
+                }
+            });
+        });
+        actions
+    }
+    pub fn update(&mut self, input: &CanvasInput) {
         for key in pressed_keys(input) {
             match key {
                 Key::Character('1') => self.language = 0,
@@ -52,23 +80,11 @@ impl Game {
                 _ => {}
             }
         }
-        for pos in clicks(input) {
-            for i in 0..4 {
-                if contains(button_rect(size, i), pos) {
-                    self.language = i;
-                }
-            }
-        }
     }
     pub fn draw(&self, painter: &mut Painter<'_>) {
         let alphabet = [&RUSSIAN[..], &ENGLISH[..], &GREEK[..], &NUMBERS[..]][self.language];
         let size = painter.size;
-        let sidebar = (size.x * 0.18).min(80.0);
-        for (letter, cell) in alphabet.iter().zip(grid(
-            Vec2::new(size.x - sidebar, size.y),
-            alphabet.len(),
-            2.0,
-        )) {
+        for (letter, cell) in alphabet.iter().zip(grid(size, alphabet.len(), 2.0)) {
             let color = match letter.type_ {
                 LetterType::Vowel => color::RED,
                 LetterType::Consonant => color::BLUE,
@@ -82,30 +98,7 @@ impl Game {
                 color,
             );
         }
-        for i in 0..4 {
-            let button = button_rect(size, i);
-            let inner = painter.button(
-                button,
-                self.language == i,
-                self.pointer.is_some_and(|p| contains(button, p)),
-            );
-            if let Some(sprite) = [Sprite::Russian, Sprite::English, Sprite::Greek].get(i) {
-                painter.sprite(*sprite, inner);
-            } else {
-                painter.label("123", inner, 28.0, 0, color::WHITE);
-            }
-        }
     }
-}
-fn button_rect(size: Vec2, i: usize) -> euclid::default::Rect<f32> {
-    let width = (size.x * 0.15).min(60.0);
-    let height = (size.y / 5.0).min(40.0);
-    rect(
-        size.x - width - width / 6.0,
-        height / 4.0 + i as f32 * height * 1.25,
-        width,
-        height,
-    )
 }
 
 const fn v(char: char) -> Letter {

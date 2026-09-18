@@ -1,10 +1,8 @@
 use crate::{
-    clicks,
     draw::{Painter, Sprite},
-    layout::{contains, rect},
+    layout::rect,
     pressed_keys,
 };
-use euclid::default::Rect;
 use rand::{Rng, SeedableRng, rngs::SmallRng};
 use wgame::{
     canvas::{CanvasInput, Event, Key},
@@ -45,6 +43,14 @@ const FRUITS: [Fruit; 3] = [
     },
 ];
 
+#[derive(Clone, Copy, PartialEq)]
+pub(crate) enum Action {
+    Fruit(usize),
+    Range(u16),
+    Adjust(i16),
+    Font(usize),
+}
+
 pub struct Game {
     number: u16,
     max_number: u16,
@@ -52,7 +58,6 @@ pub struct Game {
     font: usize,
     pending: Option<u16>,
     cooldown: f32,
-    pointer: Option<Vec2>,
 }
 impl Game {
     pub fn new() -> Self {
@@ -63,8 +68,55 @@ impl Game {
             font: 0,
             pending: None,
             cooldown: 0.0,
-            pointer: None,
         }
+    }
+    pub(crate) fn action(&mut self, action: Action) {
+        match action {
+            Action::Fruit(index) => self.fruit = index,
+            Action::Range(max) => {
+                self.max_number = max;
+                self.number = self.number.min(max);
+                self.pending = None;
+            }
+            Action::Adjust(delta) => self.apply(delta),
+            Action::Font(index) => self.font = index,
+        }
+    }
+    pub(crate) fn controls(&self, ui: &mut wgame_egui::egui::Ui) -> Vec<Action> {
+        let mut actions = Vec::new();
+        ui.horizontal_wrapped(|ui| {
+            for (index, label) in ["Яблоки", "Груши", "Апельсины"].into_iter().enumerate()
+            {
+                if ui.selectable_label(self.fruit == index, label).clicked() {
+                    actions.push(Action::Fruit(index));
+                }
+            }
+            ui.separator();
+            for max in [10, 100] {
+                if ui
+                    .selectable_label(self.max_number == max, format!("До {max}"))
+                    .clicked()
+                {
+                    actions.push(Action::Range(max));
+                }
+            }
+            for (delta, label) in [(-10, "−10"), (-1, "−1"), (1, "+1"), (10, "+10")] {
+                if ui.button(label).clicked() {
+                    actions.push(Action::Adjust(delta));
+                }
+            }
+        });
+        ui.collapsing("Шрифт", |ui| {
+            ui.horizontal_wrapped(|ui| {
+                for (index, label) in ["Без засечек", "С засечками"].into_iter().enumerate()
+                {
+                    if ui.selectable_label(self.font == index, label).clicked() {
+                        actions.push(Action::Font(index));
+                    }
+                }
+            });
+        });
+        actions
     }
     fn apply(&mut self, add: i16) {
         self.number = (self.pending.take().unwrap_or(self.number) as i16 + add)
@@ -92,8 +144,7 @@ impl Game {
             _ => {}
         }
     }
-    pub fn update(&mut self, input: &CanvasInput, dt: f32, size: Vec2) {
-        self.pointer = input.pointer;
+    pub fn update(&mut self, input: &CanvasInput, dt: f32) {
         self.cooldown = (self.cooldown - dt).max(0.0);
         if self.cooldown == 0.0 || input.events.contains(&Event::Cancelled) {
             self.pending = None;
@@ -101,25 +152,11 @@ impl Game {
         for key in pressed_keys(input) {
             self.key(key);
         }
-        for pos in clicks(input) {
-            for i in 0..3 {
-                if contains(fruit_button(size, i), pos) {
-                    self.fruit = i;
-                }
-            }
-            for (i, max) in [10, 100].into_iter().enumerate() {
-                if contains(range_button(size, i), pos) {
-                    self.max_number = max;
-                    self.number = self.number.min(max);
-                    self.pending = None;
-                }
-            }
-        }
     }
     pub fn draw(&self, painter: &mut Painter<'_>) {
         let size = painter.size;
         let fruit = &FRUITS[self.fruit];
-        let top = size.y.min(50.0);
+        let top = 0.0;
         let height = (size.y - top).max(0.0);
         let wide = self.max_number > 10 && size.x > size.y * 1.1;
         let fruit_box = if wide {
@@ -217,38 +254,7 @@ impl Game {
             0,
             color::WHITE,
         );
-        for (i, fruit) in FRUITS.iter().enumerate() {
-            let button = fruit_button(size, i);
-            let inner = painter.button(
-                button,
-                i == self.fruit,
-                self.pointer.is_some_and(|p| contains(button, p)),
-            );
-            painter.sprite(fruit.sprite, inner);
-        }
-        for (i, max) in [10, 100].into_iter().enumerate() {
-            let button = range_button(size, i);
-            painter.button(
-                button,
-                max == self.max_number,
-                self.pointer.is_some_and(|p| contains(button, p)),
-            );
-            painter.label(&max.to_string(), button, 24.0, 0, color::WHITE);
-        }
     }
-}
-fn fruit_button(size: Vec2, i: usize) -> Rect<f32> {
-    let side = (size.x / 8.0).min(36.0).min(size.y * 0.1);
-    rect(4.0 + i as f32 * (side + 4.0), 4.0, side, side)
-}
-fn range_button(size: Vec2, i: usize) -> Rect<f32> {
-    let width = (size.x / 6.0).min(55.0);
-    rect(
-        size.x - (2 - i) as f32 * (width + 4.0),
-        4.0,
-        width,
-        36.0_f32.min(size.y * 0.1),
-    )
 }
 
 fn items_text(mut n: i64, stem: &str, endings: [&str; 3], gender: Gender) -> String {
@@ -375,7 +381,7 @@ mod tests {
         game.max_number = 100;
         let original = game.number;
         game.key(Key::Character('3'));
-        game.update(&CanvasInput::default(), 4.1, Vec2::new(800.0, 600.0));
+        game.update(&CanvasInput::default(), 4.1);
         assert_eq!(game.pending, None);
         assert_eq!(game.number, original);
         game.key(Key::Character('1'));

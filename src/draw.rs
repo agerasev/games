@@ -21,9 +21,6 @@ pub enum Sprite {
     Orange,
     Mouse,
     Cheese,
-    Russian,
-    English,
-    Greek,
 }
 
 pub struct Assets {
@@ -61,21 +58,6 @@ impl Assets {
                 Sprite::Cheese,
                 &include_bytes!("../assets/cheese.png")[..],
                 TextureSettings::nearest(),
-            ),
-            (
-                Sprite::Russian,
-                &include_bytes!("../assets/flags/ru.png")[..],
-                TextureSettings::linear(),
-            ),
-            (
-                Sprite::English,
-                &include_bytes!("../assets/flags/us.png")[..],
-                TextureSettings::linear(),
-            ),
-            (
-                Sprite::Greek,
-                &include_bytes!("../assets/flags/gr.png")[..],
-                TextureSettings::linear(),
             ),
         ] {
             textures.insert(id, lib.make_texture(&Image::decode_auto(bytes)?, settings));

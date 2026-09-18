@@ -77,19 +77,7 @@ fn spawn_controls_preserve_animation_buffered_moves_and_undo() {
     assert_eq!(game.pending, pending);
     assert_eq!(game.animation.as_ref().unwrap().elapsed, elapsed);
 
-    let control = view::Layout::new(SIZE)
-        .controls(game.board.settings())
-        .into_iter()
-        .find(|c| matches!(c.action, Action::Spawn(Spawn::Mixed)))
-        .unwrap();
-    game.update(
-        &input(vec![pointer(
-            true,
-            Vec2::from_array(control.rect.center().to_array()),
-        )]),
-        0.0,
-        SIZE,
-    );
+    game.action(Action::Spawn(Spawn::Mixed));
     assert_eq!(game.board.settings().spawn, Spawn::Mixed);
     assert_eq!(game.board.cells(), before);
     assert_eq!(game.board.score(), score);
@@ -167,7 +155,7 @@ fn undo_during_animation_clears_buffered_moves_and_settings_restart_cleanly() {
     assert_eq!(game.board.cells().iter().filter(|&&v| v == 1).count(), 2);
 }
 #[test]
-fn controls_are_inside_supported_layouts_and_click_selects_settings() {
+fn board_fits_the_canvas_after_resize() {
     for size in [
         Vec2::new(320.0, 600.0),
         SIZE,
@@ -180,30 +168,5 @@ fn controls_are_inside_supported_layouts_and_click_selects_settings() {
         assert!(layout.board.min_x() >= 0.0 && layout.board.max_x() <= size.x);
         assert!(layout.board.min_y() >= 0.0 && layout.board.max_y() <= size.y);
         assert!(layout.board.size.width >= 150.0);
-        let controls = layout.controls(Settings::default());
-        for (i, control) in controls.iter().enumerate() {
-            assert!(control.rect.min_x() >= 0.0 && control.rect.max_x() <= size.x);
-            assert!(control.rect.min_y() >= 0.0 && control.rect.max_y() <= size.y);
-            assert!(
-                controls[..i]
-                    .iter()
-                    .all(|c| !c.rect.intersects(&control.rect))
-            );
-        }
-        let mut game = Game::with_seed(3);
-        let six = controls
-            .iter()
-            .find(|c| matches!(c.action, Action::Size(6)))
-            .unwrap();
-        game.update(
-            &input(vec![pointer(
-                true,
-                Vec2::from_array(six.rect.center().to_array()),
-            )]),
-            0.0,
-            size,
-        );
-        assert_eq!(game.board.settings().side, 6);
-        assert!(game.swipe.is_none());
     }
 }

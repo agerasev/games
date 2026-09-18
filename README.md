@@ -1,6 +1,7 @@
 # Games
 
-Small games using **wgame**, kept together in this repository:
+Small games using **wgame** with **wgame-egui** controls, kept together in this
+repository:
 
 - **Apples** (`apples`): count apples, pears, or oranges, with Russian number words.
 - **Letters** (`letters`): Russian, English, and Greek alphabets, plus digits.
@@ -20,6 +21,11 @@ cargo run --locked --release -- apples
 ```
 
 All images and fonts are embedded; the binary works from any directory.
+Game artwork and launcher preview tiles use the wgame canvas. Navigation,
+settings, and scores use egui, with controls that wrap and scroll on small windows.
+2048 settings and font selectors are collapsed by default. Use **Помощь** for
+keyboard controls. Click the canvas to give it keyboard focus; using a game
+control returns focus to the canvas automatically.
 The launcher supports clicking, keys **1–4**, or arrows and **Enter**.
 **Escape** or **Меню** returns to the launcher; Escape in the launcher quits.
 
@@ -28,9 +34,9 @@ The launcher supports clicking, keys **1–4**, or arrows and **Enter**.
 | Game | Controls |
 | --- | --- |
 | Apples | Fruit buttons; **10/100** range buttons; digits and **Enter/Space**; **+/−** changes by one; **Page Up/Down** changes by ten; **Backspace/Delete** cancels entry; **`** changes the number font. |
-| Letters | Flag/123 buttons or **1/2/3/0** select an alphabet or digits; **`** switches sans/serif fonts. |
-| Mouse | **Arrow keys** or **WASD** move; collecting food grows the mouse. A new round starts one second after the last item is collected. |
-| 2048 | **Arrows/WASD** or a swipe/drag on the board moves tiles. **U/Z/Backspace** undoes; **R** restarts. **3–6** select board size, **F** switches merge rules, **T** switches spawn rules. Settings and undo/restart also have clickable buttons. |
+| Letters | Alphabet buttons or **1/2/3/0** select an alphabet or digits; **`** switches sans/serif fonts. |
+| Mouse | **Arrow keys** or **WASD** move; collecting food grows the mouse. **Заново** restarts the round. A new round starts one second after the last item is collected. |
+| 2048 | **Arrows/WASD** or a swipe/drag on the board moves tiles. **U/Z/Backspace** undoes; **R** restarts. **3–6** select board size, **F** switches merge rules, **T** switches spawn rules. Open **Настройки** for size, merge rules, and spawn rules. Undo/restart stay visible. |
 
 Apples keeps a number pending while another digit could fit the selected range
 (e.g. `1 → 10 → 100`). Enter accepts a shorter number; an unfinished entry is
@@ -88,7 +94,8 @@ cargo run --locked -- mouse --smoke
 cargo run --locked -- 2048 --smoke
 ```
 
-`--smoke` presents twelve frames and exits. The offscreen test covers the launcher,
-all games, alphabet/font changes, counting to 100, 2048 variants and animation,
-portrait sizing, and DPI scaling. Set `GAMES_RENDER_OUTPUT` to an existing
+`--smoke` presents twelve frames through the egui host and exits. CPU UI tests
+cover control clicks, repeated layout passes, undo, and resizing. The offscreen
+test covers canvas artwork, alphabet/font changes, counting to 100, 2048 variants
+and animation, portrait sizing, and DPI scaling. Set `GAMES_RENDER_OUTPUT` to an existing
 directory to save PPM images.

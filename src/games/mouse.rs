@@ -42,7 +42,7 @@ impl Game {
         game.restart();
         game
     }
-    fn restart(&mut self) {
+    pub(crate) fn restart(&mut self) {
         self.player = MAP_SIZE / 2.0;
         self.radius = 0.75;
         self.total = (self.rng.sample(Poisson::new(MEAN_ITEMS).unwrap()).round() as usize).max(1);
@@ -60,6 +60,15 @@ impl Game {
             })
             .collect();
         self.timeout = 1.0;
+    }
+    pub(crate) fn controls(&self, ui: &mut wgame_egui::egui::Ui) -> bool {
+        let mut restart = false;
+        ui.horizontal_wrapped(|ui| {
+            ui.strong(format!("Собрано: {}", self.total - self.items.len()));
+            ui.label(format!("Осталось: {}", self.items.len()));
+            restart = ui.button("Заново").clicked();
+        });
+        restart
     }
     pub fn update(&mut self, input: &CanvasInput, dt: f32) {
         self.elapsed = (self.elapsed + dt) % 2.0;
@@ -107,22 +116,9 @@ impl Game {
             transform(self.player, self.radius),
             color::WHITE,
         );
-        let width = (viewport.x / 4.0).min(160.0);
-        for (x, title, count) in [
-            (4.0, "Собрано", self.total - self.items.len()),
-            (viewport.x - width - 4.0, "Осталось", self.items.len()),
-        ] {
-            painter.label(title, rect(x, 4.0, width, 30.0), 22.0, 0, color::WHITE);
-            painter.label(
-                &count.to_string(),
-                rect(x, 34.0, width, 55.0),
-                48.0,
-                0,
-                color::WHITE,
-            );
-        }
     }
 }
+
 fn motion(input: &CanvasInput) -> Vec2 {
     let held = |arrow, letter| input.key_down(arrow) || input.key_down(Key::Character(letter));
     Vec2::new(

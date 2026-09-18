@@ -78,7 +78,7 @@ fn pixels(target: &mut Offscreen) -> Vec<u8> {
 
 use wgame::{
     Library,
-    canvas::{Button, CanvasInput, Event, Key},
+    canvas::{CanvasInput, Event, Key},
     gfx::types::color,
     glam::{Affine2, Vec2},
 };
@@ -124,6 +124,54 @@ fn press(key: Key) -> CanvasInput {
     })
 }
 
+fn click_control(app: &mut App, label: &str, size: Vec2) {
+    use wgame_egui::egui;
+    let context = egui::Context::default();
+    let mut pos = None;
+    for step in 0..4 {
+        let mut actions = yarik_games::ui::Actions::default();
+        let events = if step >= 2 {
+            let pos = pos.expect("control must be drawn before clicking");
+            vec![
+                egui::Event::PointerMoved(pos),
+                egui::Event::PointerButton {
+                    pos,
+                    button: egui::PointerButton::Primary,
+                    pressed: step == 2,
+                    modifiers: Default::default(),
+                },
+            ]
+        } else {
+            Vec::new()
+        };
+        let output = context.run_ui(
+            egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::vec2(size.x, size.y),
+                )),
+                events,
+                ..Default::default()
+            },
+            |ui| {
+                let layout = app.ui(ui, |ui| {
+                    ui.allocate_response(ui.available_size(), egui::Sense::click_and_drag())
+                });
+                actions.collect(layout.actions);
+            },
+        );
+        for shape in &output.shapes {
+            if let egui::Shape::Text(text) = &shape.shape
+                && text.galley.job.text == label
+            {
+                pos = Some(text.galley.rect.translate(text.pos.to_vec2()).center());
+            }
+        }
+        output.drop_without_applying_deltas();
+        app.apply_ui(actions);
+    }
+}
+
 #[test]
 #[ignore = "requires a GPU adapter (Mesa lavapipe works)"]
 fn games_render_after_navigation_resize_and_dpi_changes() {
@@ -159,10 +207,12 @@ fn games_render_after_navigation_resize_and_dpi_changes() {
                 id.slug()
             );
             assert!(
-                rgb.iter()
-                    .filter(|p| p[0] > 180 && p[1] > 180 && p[2] > 180)
-                    .count()
-                    > 100,
+                matches!(id, GameId::Mouse | GameId::Letters)
+                    || rgb
+                        .iter()
+                        .filter(|p| p[0] > 180 && p[1] > 180 && p[2] > 180)
+                        .count()
+                        > 100,
                 "{} has no text",
                 id.slug()
             );
@@ -171,20 +221,21 @@ fn games_render_after_navigation_resize_and_dpi_changes() {
             if id == GameId::Letters {
                 let mut previous = pixels;
                 for c in ['2', '3', '0', '`'] {
-                    app.update(&press(Key::Character(c)), 0.0, logical);
+                    match c {
+                        '2' => click_control(&mut app, "English", logical),
+                        '3' => click_control(&mut app, "Ελληνικά", logical),
+                        '0' => click_control(&mut app, "123", logical),
+                        _ => {
+                            app.update(&press(Key::Character(c)), 0.0, logical);
+                        }
+                    }
                     let next = draw(&app, &lib, &assets, physical, scale);
                     assert_ne!(next, previous, "alphabet/font switch must change pixels");
                     save(&format!("letters-{c}-{}", physical.0), physical, &next);
                     previous = next;
                 }
             } else if id == GameId::Apples {
-                let button = Vec2::new(logical.x - 20.0, 15.0);
-                let click = event_input(Event::Button {
-                    button: Button::Primary,
-                    pressed: true,
-                    position: button,
-                });
-                app.update(&click, 0.0, logical);
+                click_control(&mut app, "До 100", logical);
                 for c in "100".chars() {
                     app.update(&press(Key::Character(c)), 0.0, logical);
                 }
@@ -193,7 +244,7 @@ fn games_render_after_navigation_resize_and_dpi_changes() {
                 save(&format!("apples-100-{}", physical.0), physical, &next);
             } else if id == GameId::Puzzle2048 {
                 let mut previous = pixels;
-                for c in ['3', '6', 'f', 't'] {
+                for c in ['3', '6', 'f'] {
                     app.update(&press(Key::Character(c)), 0.0, logical);
                     let next = draw(&app, &lib, &assets, physical, scale);
                     assert_ne!(next, previous, "2048 settings must change the board");
