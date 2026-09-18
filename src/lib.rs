@@ -91,7 +91,11 @@ impl App {
                             (self.selection + GameId::ALL.len() - 1) % GameId::ALL.len()
                     }
                     Key::Enter | Key::Space => launch = Some(self.selection),
-                    Key::Character(c @ '1'..='4') => launch = Some(c as usize - '1' as usize),
+                    Key::Character(c @ '1'..='9')
+                        if (c as usize - '1' as usize) < GameId::ALL.len() =>
+                    {
+                        launch = Some(c as usize - '1' as usize)
+                    }
                     _ => {}
                 }
             }
@@ -134,6 +138,7 @@ impl App {
                     side,
                 );
                 match id {
+                    GameId::MoonLander => games::moon_lander::preview(painter, preview),
                     GameId::Apples => painter.sprite(Sprite::Apple, preview),
                     GameId::Letters => painter.label("А а", preview, side * 0.6, 0, color::RED),
                     GameId::Puzzle2048 => {

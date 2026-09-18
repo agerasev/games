@@ -52,7 +52,7 @@ mod tests {
             Vec2::new(320.0, 640.0),
             Vec2::splat(1.0),
         ] {
-            for count in [0, 4, 10, 24, 26, 33] {
+            for count in [0, 4, 5, 10, 24, 26, 33] {
                 let cells = grid(size, count, 2.0);
                 assert_eq!(cells.len(), count);
                 for (i, cell) in cells.iter().enumerate() {

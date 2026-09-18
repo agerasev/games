@@ -197,8 +197,9 @@ mod tests {
             .flat_map(|id| [id.title(), id.hint(), id.short_hint()])
             .chain([
                 "Меню",
-                "Выберите игру / 1-4 / стрелки и Enter / Esc - выход",
-                "1. 2. 3. 4.",
+                "Выберите игру / 1-5 / стрелки и Enter / Esc - выход",
+                "1. 2. 3. 4. 5.",
+                "Space - тяга / A, D - наклон / A / < / D / >",
             ])
         {
             for ch in text.chars() {

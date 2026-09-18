@@ -188,3 +188,28 @@ fn terrain_ridges_and_play_area_bounds_are_solid() {
     flight.advance(Control::default(), STEP);
     assert_eq!(flight.status, Status::Crashed(Crash::Bounds));
 }
+
+#[test]
+fn exhaust_hits_the_surface_and_impact_telemetry_is_preserved() {
+    let mut f = Flight::new(0);
+    f.craft.pos.y = 14.0;
+    tick(
+        &mut f,
+        Control {
+            thrust: true,
+            turn: 0.0,
+        },
+        120,
+    );
+    assert!(f.particles.iter().any(|p| p.dust));
+    assert!(
+        f.particles
+            .iter()
+            .all(|p| p.pos.y >= f.terrain.height(p.pos.x))
+    );
+    *f.craft.pos = Vec2::new(60.0, 8.4);
+    *f.craft.vel = Vec2::new(0.0, -8.0);
+    f.advance(Control::default(), STEP);
+    assert_eq!(f.status, Status::Crashed(Crash::Speed));
+    assert!(f.craft.vel.y < -8.0);
+}

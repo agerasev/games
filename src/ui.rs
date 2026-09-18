@@ -74,7 +74,7 @@ impl App {
                     });
                 } else {
                     ui.heading("Игры");
-                    ui.label("Выберите игру / 1–4 / стрелки и Enter");
+                    ui.label("Выберите игру / 1–5 / стрелки и Enter");
                     if ui.button("Выход / Esc").clicked() {
                         actions.0.push(Action::Quit);
                     }
@@ -112,7 +112,10 @@ impl App {
     /// Apply collected UI actions once. Returns whether the current input frame
     /// was consumed by a control, and whether the application should keep running.
     pub fn apply_ui(&mut self, actions: Actions) -> (bool, bool) {
-        let consumed = !actions.0.is_empty();
+        let consumed = actions.0.iter().any(|action| match action {
+            Action::Game(action) => action.consumes_input(),
+            _ => true,
+        });
         self.focus_canvas = consumed;
         for action in actions.0 {
             match action {

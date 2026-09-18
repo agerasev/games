@@ -54,7 +54,14 @@ impl Harness {
         );
         self.shapes = output.shapes.clone();
         output.drop_without_applying_deltas();
-        let count = actions.0.len();
+        let count = actions
+            .0
+            .iter()
+            .filter(|a| match a {
+                Action::Game(a) => a.consumes_input(),
+                _ => true,
+            })
+            .count();
         assert!(self.app.apply_ui(actions).1);
         count
     }
@@ -200,5 +207,73 @@ fn puzzle_controls_preserve_the_round_and_apply_undo_once_across_passes() {
         assert_eq!(h.puzzle().moves(), 0);
         assert!(!h.puzzle().can_undo());
         assert!(h.canvas.width() > 150.0 && h.canvas.height() > 100.0);
+    }
+}
+
+#[test]
+fn lander_held_controls_advance_release_and_pause_on_focus_loss() {
+    for size in [egui::vec2(1280.0, 720.0), egui::vec2(320.0, 640.0)] {
+        let mut h = Harness::new(size);
+        h.app = App::new(Some(GameId::MoonLander));
+        h.frame(Vec::new(), false);
+        h.frame(Vec::new(), false);
+        let pos = h.text("Тяга / Space").center();
+        assert!(pos.y < h.canvas.min.y);
+        assert_eq!(
+            h.frame(
+                vec![
+                    egui::Event::PointerMoved(pos),
+                    egui::Event::PointerButton {
+                        pos,
+                        button: egui::PointerButton::Primary,
+                        pressed: true,
+                        modifiers: Default::default()
+                    },
+                ],
+                true
+            ),
+            0,
+            "held controls must not consume the simulation frame"
+        );
+        let mut input = CanvasInput::default();
+        input.window_focused = true;
+        let canvas = Vec2::new(h.canvas.width(), h.canvas.height());
+        for _ in 0..30 {
+            h.app.update(&input, 1.0 / 60.0, canvas);
+        }
+        let flight = |app: &App| match &app.active {
+            Some(Game::MoonLander(game)) => (
+                game.flight().fuel,
+                game.flight().power,
+                *game.flight().craft.pos,
+            ),
+            _ => panic!("expected lander"),
+        };
+        let (fuel, power, _) = flight(&h.app);
+        assert!(fuel < 99.0 && power > 0.0);
+        h.frame(
+            vec![egui::Event::PointerButton {
+                pos,
+                button: egui::PointerButton::Primary,
+                pressed: false,
+                modifiers: Default::default(),
+            }],
+            true,
+        );
+        h.app.update(&input, 1.0 / 60.0, canvas);
+        assert_eq!(flight(&h.app).0, fuel);
+        assert_eq!(flight(&h.app).1, 0.0);
+        h.app.update(&CanvasInput::default(), 0.1, canvas);
+        let paused_pos = flight(&h.app).2;
+        h.app.update(&input, 0.1, canvas);
+        assert_eq!(flight(&h.app).2, paused_pos);
+        h.frame(Vec::new(), false);
+        assert_eq!(h.click("Продолжить / P", true), 1);
+        h.app.update(&input, 0.1, canvas);
+        assert_ne!(flight(&h.app).2, paused_pos);
+        h.frame(Vec::new(), false);
+        assert_eq!(h.click("Заново / R", true), 1);
+        assert_eq!(flight(&h.app).0, 100.0);
+        assert_eq!(flight(&h.app).2, Vec2::new(60.0, 64.0));
     }
 }

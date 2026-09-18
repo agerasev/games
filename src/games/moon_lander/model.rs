@@ -273,11 +273,12 @@ impl Flight {
                 if self.status == Status::Landed {
                     self.craft.pos.y = pad.height + FOOT_DROP;
                     *self.craft.angle = 0.0;
+                    *self.craft.vel = Vec2::ZERO;
+                    *self.craft.spin = 0.0;
                 } else {
+                    // Keep impact telemetry visible while the wreck is frozen.
                     self.burst();
                 }
-                *self.craft.vel = Vec2::ZERO;
-                *self.craft.spin = 0.0;
             } else if self.craft.pos.x < 0.0
                 || self.craft.pos.x > WIDTH
                 || self.craft.pos.y > HEIGHT

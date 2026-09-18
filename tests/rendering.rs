@@ -218,7 +218,24 @@ fn games_render_after_navigation_resize_and_dpi_changes() {
             );
             assert_ne!(menu, pixels);
             save(&format!("{}-{}", id.slug(), physical.0), physical, &pixels);
-            if id == GameId::Letters {
+            if id == GameId::MoonLander {
+                let mut held = wgame::canvas::InputState::default();
+                held.push(Event::Focused(true));
+                held.push(Event::Key {
+                    key: Key::Space,
+                    pressed: true,
+                    repeat: false,
+                });
+                for _ in 0..45 {
+                    app.update(held.input(), 1.0 / 60.0, logical);
+                }
+                let flying = draw(&app, &lib, &assets, physical, scale);
+                assert_ne!(
+                    flying, pixels,
+                    "thrust must move the craft and draw exhaust"
+                );
+                save(&format!("lander-flying-{}", physical.0), physical, &flying);
+            } else if id == GameId::Letters {
                 let mut previous = pixels;
                 for c in ['2', '3', '0', '`'] {
                     match c {
