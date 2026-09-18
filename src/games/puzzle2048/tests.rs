@@ -1,0 +1,129 @@
+use super::*;
+fn input(events: Vec<Event>) -> CanvasInput {
+    let mut input = CanvasInput::default();
+    input.events = events;
+    input
+}
+fn key(key: Key) -> Event {
+    Event::Key {
+        key,
+        pressed: true,
+        repeat: false,
+    }
+}
+fn pointer(pressed: bool, position: Vec2) -> Event {
+    Event::Button {
+        button: Button::Primary,
+        pressed,
+        position,
+    }
+}
+const SIZE: Vec2 = Vec2::new(400.0, 720.0);
+#[test]
+fn swipe_matches_keyboard_and_cancellation_aborts_stale_input() {
+    let mut swipe = Game::with_seed(3);
+    let mut keyboard = Game::with_seed(3);
+    let area = view::Layout::new(SIZE).board;
+    let center = Vec2::from_array(area.center().to_array());
+    swipe.update(
+        &input(vec![
+            pointer(true, center),
+            pointer(false, center + Vec2::X * 80.0),
+        ]),
+        0.0,
+        SIZE,
+    );
+    keyboard.update(&input(vec![key(Key::ArrowRight)]), 0.0, SIZE);
+    assert_eq!(swipe.board.cells(), keyboard.board.cells());
+    assert_eq!(swipe.board.moves(), 1);
+    let previous = swipe.board.cells().to_vec();
+    swipe.update(
+        &input(vec![
+            pointer(true, center),
+            key(Key::ArrowLeft),
+            Event::Cancelled,
+            pointer(false, center - Vec2::X * 80.0),
+        ]),
+        1.0,
+        SIZE,
+    );
+    assert_eq!(swipe.board.cells(), previous);
+    assert!(swipe.pending.is_empty());
+}
+#[test]
+fn undo_during_animation_clears_buffered_moves_and_settings_restart_cleanly() {
+    let mut game = Game::with_seed(3);
+    let original = game.board.cells().to_vec();
+    game.update(
+        &input(vec![key(Key::ArrowRight), key(Key::ArrowDown)]),
+        0.0,
+        SIZE,
+    );
+    assert!(game.animation.is_some());
+    assert!(!game.pending.is_empty());
+    game.update(&input(vec![key(Key::Character('u'))]), 0.0, SIZE);
+    assert_eq!(game.board.cells(), original);
+    assert!(game.animation.is_none());
+    assert!(game.pending.is_empty());
+    game.update(
+        &input(vec![
+            key(Key::Character('6')),
+            key(Key::Character('f')),
+            key(Key::Character('t')),
+        ]),
+        0.0,
+        SIZE,
+    );
+    assert_eq!(
+        game.board.settings(),
+        Settings {
+            side: 6,
+            rule: Rule::Fibonacci,
+            spawn: Spawn::SmallOnly
+        }
+    );
+    assert_eq!(game.board.cells().iter().filter(|&&v| v == 1).count(), 2);
+    assert_eq!(game.board.moves(), 0);
+    assert!(!game.board.can_undo());
+}
+#[test]
+fn controls_are_inside_supported_layouts_and_click_selects_settings() {
+    for size in [
+        Vec2::new(320.0, 600.0),
+        SIZE,
+        Vec2::new(1280.0, 680.0),
+        Vec2::new(640.0, 440.0),
+        Vec2::new(640.0, 320.0),
+        Vec2::new(568.0, 280.0),
+    ] {
+        let layout = view::Layout::new(size);
+        assert!(layout.board.min_x() >= 0.0 && layout.board.max_x() <= size.x);
+        assert!(layout.board.min_y() >= 0.0 && layout.board.max_y() <= size.y);
+        assert!(layout.board.size.width >= 150.0);
+        let controls = layout.controls(Settings::default());
+        for (i, control) in controls.iter().enumerate() {
+            assert!(control.rect.min_x() >= 0.0 && control.rect.max_x() <= size.x);
+            assert!(control.rect.min_y() >= 0.0 && control.rect.max_y() <= size.y);
+            assert!(
+                controls[..i]
+                    .iter()
+                    .all(|c| !c.rect.intersects(&control.rect))
+            );
+        }
+        let mut game = Game::with_seed(3);
+        let six = controls
+            .iter()
+            .find(|c| matches!(c.action, Action::Size(6)))
+            .unwrap();
+        game.update(
+            &input(vec![pointer(
+                true,
+                Vec2::from_array(six.rect.center().to_array()),
+            )]),
+            0.0,
+            size,
+        );
+        assert_eq!(game.board.settings().side, 6);
+        assert!(game.swipe.is_none());
+    }
+}

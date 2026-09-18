@@ -51,7 +51,7 @@ fn pointer_launch_and_back_use_logical_coordinates_after_resize() {
         for (id, cell) in
             GameId::ALL
                 .into_iter()
-                .zip(grid(content_size(size), GameId::ALL.len(), 1.3))
+                .zip(grid(content_size(size), GameId::ALL.len(), MENU_ASPECT))
         {
             let click = |pos| Event::Button {
                 button: Button::Primary,

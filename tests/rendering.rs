@@ -130,7 +130,12 @@ fn games_render_after_navigation_resize_and_dpi_changes() {
     let gfx = graphics();
     let lib = Library::new(&gfx);
     let mut assets = Assets::new(&lib).unwrap();
-    for (physical, scale) in [((960, 640), 1.0), ((320, 640), 1.0), ((1280, 960), 2.0)] {
+    for (physical, scale) in [
+        ((960, 640), 1.0),
+        ((320, 640), 1.0),
+        ((640, 360), 1.0),
+        ((1280, 960), 2.0),
+    ] {
         assets.set_scale_factor(f64::from(scale));
         let logical = Vec2::new(physical.0 as f32, physical.1 as f32) / scale;
         let mut app = App::new(None);
@@ -186,6 +191,30 @@ fn games_render_after_navigation_resize_and_dpi_changes() {
                 let next = draw(&app, &lib, &assets, physical, scale);
                 assert_ne!(next, pixels);
                 save(&format!("apples-100-{}", physical.0), physical, &next);
+            } else if id == GameId::Puzzle2048 {
+                let mut previous = pixels;
+                for c in ['3', '6', 'f', 't'] {
+                    app.update(&press(Key::Character(c)), 0.0, logical);
+                    let next = draw(&app, &lib, &assets, physical, scale);
+                    assert_ne!(next, previous, "2048 settings must change the board");
+                    save(&format!("2048-{c}-{}", physical.0), physical, &next);
+                    previous = next;
+                }
+                // Opposite directions guarantee movement regardless of initial spawn.
+                for key in [Key::ArrowLeft, Key::ArrowRight] {
+                    app.update(&press(key), 0.3, logical);
+                }
+                app.update(&CanvasInput::default(), 0.06, logical);
+                let sliding = draw(&app, &lib, &assets, physical, scale);
+                app.update(&CanvasInput::default(), 0.13, logical);
+                let popping = draw(&app, &lib, &assets, physical, scale);
+                app.update(&CanvasInput::default(), 0.2, logical);
+                let settled = draw(&app, &lib, &assets, physical, scale);
+                assert_ne!(sliding, popping, "tile movement/spawning must animate");
+                assert_ne!(popping, settled, "spawn animation must settle");
+                save(&format!("2048-play-{}", physical.0), physical, &settled);
+                app.update(&press(Key::Character('u')), 0.0, logical);
+                assert_ne!(draw(&app, &lib, &assets, physical, scale), settled);
             }
             app.update(&press(Key::Escape), 0.0, logical);
             assert_eq!(app.active_id(), None);

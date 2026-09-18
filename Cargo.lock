@@ -3397,6 +3397,7 @@ dependencies = [
  "futures",
  "rand",
  "rand_distr",
+ "web-time",
  "wgame",
  "wgpu",
 ]

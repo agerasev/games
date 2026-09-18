@@ -14,6 +14,7 @@ use wgame::{
 };
 
 const FOOTER: f32 = 40.0;
+const MENU_ASPECT: f32 = 1.8;
 
 fn current_events(input: &CanvasInput) -> &[Event] {
     let start = input
@@ -79,7 +80,7 @@ impl App {
         if let Some(game) = &mut self.active {
             game.update(input, dt, content);
         } else {
-            let boxes = grid(content, GameId::ALL.len(), 1.3);
+            let boxes = grid(content, GameId::ALL.len(), MENU_ASPECT);
             let mut launch = None;
             for key in pressed_keys(input) {
                 match key {
@@ -91,7 +92,7 @@ impl App {
                             (self.selection + GameId::ALL.len() - 1) % GameId::ALL.len()
                     }
                     Key::Enter | Key::Space => launch = Some(self.selection),
-                    Key::Character(c @ '1'..='3') => launch = Some(c as usize - '1' as usize),
+                    Key::Character(c @ '1'..='4') => launch = Some(c as usize - '1' as usize),
                     _ => {}
                 }
             }
@@ -115,7 +116,7 @@ impl App {
         } else {
             for (index, (id, cell)) in GameId::ALL
                 .into_iter()
-                .zip(grid(painter.size, GameId::ALL.len(), 1.3))
+                .zip(grid(painter.size, GameId::ALL.len(), MENU_ASPECT))
                 .enumerate()
             {
                 let cell = cell.inflate(
@@ -134,6 +135,10 @@ impl App {
                 match id {
                     GameId::Apples => painter.sprite(Sprite::Apple, preview),
                     GameId::Letters => painter.label("А а", preview, side * 0.6, 0, color::RED),
+                    GameId::Puzzle2048 => {
+                        painter.rectangle(preview, Vec3::new(0.17, 0.43, 0.62));
+                        painter.label("2048", preview, side * 0.3, 0, color::WHITE);
+                    }
                     GameId::Mouse => {
                         painter.sprite(Sprite::Mouse, preview);
                         painter.sprite(
@@ -172,9 +177,9 @@ impl App {
                 game.id().hint()
             }
         } else if size.x < 640.0 {
-            "Выберите игру / 1-3 / Enter / Esc"
+            "Выберите игру / 1-4 / Enter / Esc"
         } else {
-            "Выберите игру / 1-3 / стрелки и Enter / Esc - выход"
+            "Выберите игру / 1-4 / стрелки и Enter / Esc - выход"
         };
         let x = if self.active.is_some() { 120.0 } else { 8.0 };
         painter.label(

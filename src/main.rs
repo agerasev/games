@@ -24,7 +24,7 @@ fn options() -> Result<(Option<GameId>, bool)> {
             } else {
                 start = Some(GameId::parse(&arg).ok_or_else(|| {
                     wgame::Error::msg(format!(
-                        "Unknown game {arg:?}; choose apples, letters, or mouse"
+                        "Unknown game {arg:?}; choose apples, letters, mouse, or 2048"
                     ))
                 })?);
             }
