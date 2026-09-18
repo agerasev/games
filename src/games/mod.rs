@@ -1,6 +1,7 @@
 mod apples;
 mod letters;
 mod mouse;
+pub mod puzzle2048;
 
 use crate::draw::Painter;
 use wgame::{canvas::CanvasInput, glam::Vec2};
