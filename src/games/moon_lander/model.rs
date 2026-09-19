@@ -2,7 +2,7 @@
 //! RK4 integrates the craft; Euler integrates cosmetic exhaust and dust.
 //! Terrain contact and landing rules are deliberately separate from the solver.
 use phy::{Euler, Rk4, Solver, System, Var, Visitor};
-use rand::{Rng, SeedableRng, rngs::SmallRng};
+use rand::{RngExt, SeedableRng, rngs::SmallRng};
 use wgame::glam::{Mat2, Vec2};
 
 pub const WIDTH: f32 = 120.0;

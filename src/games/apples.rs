@@ -3,7 +3,7 @@ use crate::{
     layout::rect,
     pressed_keys,
 };
-use rand::{Rng, SeedableRng, rngs::SmallRng};
+use rand::{RngExt, SeedableRng, rngs::SmallRng};
 use wgame::{
     canvas::{CanvasInput, Event, Key},
     gfx::types::color,

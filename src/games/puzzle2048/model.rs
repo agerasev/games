@@ -1,7 +1,7 @@
 //! CPU-only rules. A successful move merges toward the leading edge, scores the
 //! resulting values, then spawns exactly one tile. A blocked move changes nothing,
 //! including random state and undo history. Undo restores the entire previous turn.
-use rand::{Rng, SeedableRng, rngs::SmallRng};
+use rand::{RngExt, SeedableRng, rngs::SmallRng};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Rule {

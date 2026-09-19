@@ -2,7 +2,7 @@ use crate::{
     draw::{Painter, Sprite},
     layout::rect,
 };
-use rand::{Rng, SeedableRng, rngs::SmallRng};
+use rand::{RngExt, SeedableRng, rngs::SmallRng};
 use rand_distr::Poisson;
 use std::f32::consts::PI;
 use wgame::{
