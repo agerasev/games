@@ -2,7 +2,7 @@ mod animation;
 mod objects;
 
 use objects::{Character, Object, Personality, Tree, TreeSpecies};
-use rand::{Rng, SeedableRng, rngs::SmallRng};
+use rand::{RngExt, SeedableRng, rngs::SmallRng};
 use rand_distr::{Normal, Poisson, Uniform};
 use std::time::Duration;
 use wgame::{
