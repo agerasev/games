@@ -74,7 +74,7 @@ impl App {
                     });
                 } else {
                     ui.heading("Игры");
-                    ui.label("Выберите игру / 1–5 / стрелки и Enter");
+                    ui.label("Выберите игру / 1–6 / стрелки и Enter");
                     if ui.button("Выход / Esc").clicked() {
                         actions.0.push(Action::Quit);
                     }

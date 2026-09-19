@@ -218,7 +218,25 @@ fn games_render_after_navigation_resize_and_dpi_changes() {
             );
             assert_ne!(menu, pixels);
             save(&format!("{}-{}", id.slug(), physical.0), physical, &pixels);
-            if id == GameId::MoonLander {
+            if id == GameId::Parking {
+                let mut held = wgame::canvas::InputState::default();
+                held.push(Event::Focused(true));
+                held.push(Event::Key {
+                    key: Key::Character('w'),
+                    pressed: true,
+                    repeat: false,
+                });
+                for _ in 0..45 {
+                    app.update(held.input(), 1.0 / 60.0, logical);
+                }
+                let driving = draw(&app, &lib, &assets, physical, scale);
+                assert_ne!(driving, pixels, "acceleration must move the car");
+                save(
+                    &format!("parking-driving-{}", physical.0),
+                    physical,
+                    &driving,
+                );
+            } else if id == GameId::MoonLander {
                 let mut held = wgame::canvas::InputState::default();
                 held.push(Event::Focused(true));
                 held.push(Event::Key {

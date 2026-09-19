@@ -277,3 +277,85 @@ fn lander_held_controls_advance_release_and_pause_on_focus_loss() {
         assert_eq!(flight(&h.app).2, Vec2::new(60.0, 64.0));
     }
 }
+
+#[test]
+fn parking_sidebar_drives_reverses_brakes_and_resets() {
+    for size in [egui::vec2(1280.0, 720.0), egui::vec2(320.0, 640.0)] {
+        let mut h = Harness::new(size);
+        h.app = App::new(Some(GameId::Parking));
+        h.frame(Vec::new(), false);
+        h.frame(Vec::new(), false);
+        let telemetry = |app: &App| match &app.active {
+            Some(Game::Parking(game)) => (*game.round().car.pos, game.round().car.speed),
+            _ => panic!("expected parking"),
+        };
+        let start = telemetry(&h.app).0;
+        let mut input = CanvasInput::default();
+        input.window_focused = true;
+        let canvas = Vec2::new(h.canvas.width(), h.canvas.height());
+        for (gear, direction) in [("Вперёд", 1.0), ("Назад", -1.0)] {
+            assert_eq!(h.click(gear, true), 1);
+            h.frame(Vec::new(), false);
+            let pos = h.text("Газ / W, S").center();
+            assert!(pos.x < h.canvas.min.x && pos.y < size.y);
+            assert_eq!(
+                h.frame(
+                    vec![
+                        egui::Event::PointerMoved(pos),
+                        egui::Event::PointerButton {
+                            pos,
+                            button: egui::PointerButton::Primary,
+                            pressed: true,
+                            modifiers: Default::default()
+                        }
+                    ],
+                    true
+                ),
+                0
+            );
+            for _ in 0..30 {
+                h.app.update(&input, 1.0 / 60.0, canvas);
+            }
+            assert!(telemetry(&h.app).1 * direction > 1.0);
+            h.frame(
+                vec![egui::Event::PointerButton {
+                    pos,
+                    button: egui::PointerButton::Primary,
+                    pressed: false,
+                    modifiers: Default::default(),
+                }],
+                true,
+            );
+            let pos = h.text("Тормоз / Space").center();
+            h.frame(
+                vec![
+                    egui::Event::PointerMoved(pos),
+                    egui::Event::PointerButton {
+                        pos,
+                        button: egui::PointerButton::Primary,
+                        pressed: true,
+                        modifiers: Default::default(),
+                    },
+                ],
+                false,
+            );
+            for _ in 0..30 {
+                h.app.update(&input, 1.0 / 60.0, canvas);
+            }
+            assert_eq!(telemetry(&h.app).1, 0.0);
+            assert_eq!(h.app.repaint_after(), None);
+            h.frame(
+                vec![egui::Event::PointerButton {
+                    pos,
+                    button: egui::PointerButton::Primary,
+                    pressed: false,
+                    modifiers: Default::default(),
+                }],
+                false,
+            );
+        }
+        h.frame(Vec::new(), false);
+        assert_eq!(h.click("Заново / R", true), 1);
+        assert_eq!(telemetry(&h.app).0, start);
+    }
+}

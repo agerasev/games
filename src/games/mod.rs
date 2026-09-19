@@ -15,14 +15,16 @@ pub enum GameId {
     Mouse,
     Puzzle2048,
     MoonLander,
+    Parking,
 }
 impl GameId {
-    pub const ALL: [Self; 5] = [
+    pub const ALL: [Self; 6] = [
         Self::Apples,
         Self::Letters,
         Self::Mouse,
         Self::Puzzle2048,
         Self::MoonLander,
+        Self::Parking,
     ];
     pub fn slug(self) -> &'static str {
         match self {
@@ -31,6 +33,7 @@ impl GameId {
             Self::Mouse => "mouse",
             Self::Puzzle2048 => "2048",
             Self::MoonLander => "lander",
+            Self::Parking => "parking",
         }
     }
     pub fn parse(value: &str) -> Option<Self> {
@@ -43,6 +46,7 @@ impl GameId {
             Self::Mouse => "Мышь и сыр",
             Self::Puzzle2048 => "2048 / Фибоначчи",
             Self::MoonLander => "Лунный модуль",
+            Self::Parking => "Парковка",
         }
     }
     pub fn short_hint(self) -> &'static str {
@@ -52,6 +56,7 @@ impl GameId {
             Self::Mouse => "Стрелки / WASD",
             Self::Puzzle2048 => "Стрелки / свайп / U / R",
             Self::MoonLander => "Space / A / D / P / R",
+            Self::Parking => "WASD / Space / P / R",
         }
     }
     pub fn hint(self) -> &'static str {
@@ -60,6 +65,7 @@ impl GameId {
             Self::Letters => "1 - русский / 2 - English / 3 - греческий / 0 - цифры / ` - шрифт",
             Self::Mouse => "Стрелки / WASD - движение / Соберите всё!",
             Self::Puzzle2048 => "Стрелки / WASD / свайп - ход / U - отмена / R - заново",
+            Self::Parking => "W, S - газ / A, D - руль / Space - тормоз / P - пауза / R - заново",
             Self::MoonLander => {
                 "Space / W / вверх - тяга / A, D / влево, вправо - наклон / P - пауза / R - заново / N - следующая посадка"
             }
@@ -73,11 +79,16 @@ pub(crate) enum Action {
     MouseRestart,
     Puzzle2048(puzzle2048::Action),
     MoonLander(moon_lander::Action),
+    Parking(parking::Action),
 }
 
 impl Action {
     pub(crate) fn consumes_input(&self) -> bool {
-        !matches!(self, Self::MoonLander(moon_lander::Action::Pilot(_)))
+        !matches!(
+            self,
+            Self::MoonLander(moon_lander::Action::Pilot(_))
+                | Self::Parking(parking::Action::Pilot(_) | parking::Action::Steering(_))
+        )
     }
 }
 
@@ -87,6 +98,7 @@ pub enum Game {
     Mouse(mouse::Game),
     Puzzle2048(puzzle2048::Game),
     MoonLander(moon_lander::Game),
+    Parking(parking::Game),
 }
 impl Game {
     pub fn new(id: GameId) -> Self {
@@ -96,6 +108,7 @@ impl Game {
             GameId::Mouse => Self::Mouse(mouse::Game::new()),
             GameId::Puzzle2048 => Self::Puzzle2048(puzzle2048::Game::new()),
             GameId::MoonLander => Self::MoonLander(moon_lander::Game::new()),
+            GameId::Parking => Self::Parking(parking::Game::new()),
         }
     }
     pub fn id(&self) -> GameId {
@@ -105,6 +118,7 @@ impl Game {
             Self::Mouse(_) => GameId::Mouse,
             Self::Puzzle2048(_) => GameId::Puzzle2048,
             Self::MoonLander(_) => GameId::MoonLander,
+            Self::Parking(_) => GameId::Parking,
         }
     }
     pub(crate) fn action(&mut self, action: Action) {
@@ -114,11 +128,13 @@ impl Game {
             (Self::Mouse(game), Action::MouseRestart) => game.restart(),
             (Self::Puzzle2048(game), Action::Puzzle2048(action)) => game.action(action),
             (Self::MoonLander(game), Action::MoonLander(action)) => game.action(action),
+            (Self::Parking(game), Action::Parking(action)) => game.action(action),
             _ => {}
         }
     }
     pub(crate) fn controls(&self, ui: &mut wgame_egui::egui::Ui) -> Vec<Action> {
         match self {
+            Self::Parking(game) => game.controls(ui).into_iter().map(Action::Parking).collect(),
             Self::Apples(game) => game.controls(ui).into_iter().map(Action::Apples).collect(),
             Self::Letters(game) => game.controls(ui).into_iter().map(Action::Letters).collect(),
             Self::MoonLander(game) => game
@@ -148,6 +164,7 @@ impl Game {
             Self::Mouse(_) => Some(Duration::ZERO),
             Self::Puzzle2048(game) => game.repaint_after(),
             Self::MoonLander(game) => game.repaint_after(),
+            Self::Parking(game) => game.repaint_after(),
         }
     }
     pub fn update(&mut self, input: &CanvasInput, dt: f32, size: Vec2) {
@@ -157,6 +174,7 @@ impl Game {
             Self::Mouse(game) => game.update(input, dt),
             Self::Puzzle2048(game) => game.update(input, dt, size),
             Self::MoonLander(game) => game.update(input, dt),
+            Self::Parking(game) => game.update(input, dt),
         }
     }
     pub fn draw(&self, painter: &mut Painter<'_>) {
@@ -166,6 +184,7 @@ impl Game {
             Self::Mouse(game) => game.draw(painter),
             Self::Puzzle2048(game) => game.draw(painter),
             Self::MoonLander(game) => game.draw(painter),
+            Self::Parking(game) => game.draw(painter),
         }
     }
 }

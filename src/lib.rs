@@ -149,6 +149,7 @@ impl App {
                 );
                 match id {
                     GameId::MoonLander => games::moon_lander::preview(painter, preview),
+                    GameId::Parking => games::parking::preview(painter, preview),
                     GameId::Apples => painter.sprite(Sprite::Apple, preview),
                     GameId::Letters => painter.label("А а", preview, side * 0.6, 0, color::RED),
                     GameId::Puzzle2048 => {

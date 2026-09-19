@@ -69,6 +69,7 @@ fn static_games_sleep_and_timed_work_stops_requesting_frames() {
         Some(GameId::Apples),
         Some(GameId::Puzzle2048),
         Some(GameId::MoonLander),
+        Some(GameId::Parking),
     ] {
         assert_eq!(App::new(id).repaint_after(), None);
     }
