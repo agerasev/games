@@ -57,6 +57,11 @@ impl Game {
         self.paused = true;
         self.pilot = Control::default();
     }
+    pub(crate) fn repaint_after(&self) -> Option<std::time::Duration> {
+        (!self.paused
+            && (self.flight.status == Status::Flying || !self.flight.particles.is_empty()))
+        .then_some(std::time::Duration::ZERO)
+    }
     pub fn update(&mut self, input: &CanvasInput, dt: f32) {
         if !input.window_focused {
             self.pilot = Control::default();

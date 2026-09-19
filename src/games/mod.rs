@@ -139,6 +139,16 @@ impl Game {
                 .collect(),
         }
     }
+    pub fn repaint_after(&self) -> Option<std::time::Duration> {
+        use std::time::Duration;
+        match self {
+            Self::Apples(game) => game.repaint_after(),
+            Self::Letters(_) => None,
+            Self::Mouse(_) => Some(Duration::ZERO),
+            Self::Puzzle2048(game) => game.repaint_after(),
+            Self::MoonLander(game) => game.repaint_after(),
+        }
+    }
     pub fn update(&mut self, input: &CanvasInput, dt: f32, size: Vec2) {
         match self {
             Self::Apples(game) => game.update(input, dt),

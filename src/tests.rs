@@ -59,3 +59,51 @@ fn cancellation_does_not_activate_a_stale_click_or_key() {
     assert!(app.update(&input(events), 0.0, Vec2::new(800.0, 600.0)));
     assert_eq!(app.active_id(), None);
 }
+
+#[test]
+fn static_games_sleep_and_timed_work_stops_requesting_frames() {
+    use std::time::Duration;
+    for id in [
+        None,
+        Some(GameId::Letters),
+        Some(GameId::Apples),
+        Some(GameId::Puzzle2048),
+        Some(GameId::MoonLander),
+    ] {
+        assert_eq!(App::new(id).repaint_after(), None);
+    }
+    assert_eq!(
+        App::new(Some(GameId::Mouse)).repaint_after(),
+        Some(Duration::ZERO)
+    );
+    let mut puzzle = App::new(Some(GameId::Puzzle2048));
+    let size = Vec2::new(640.0, 480.0);
+    for key in [Key::ArrowLeft, Key::ArrowRight] {
+        let mut input = CanvasInput::default();
+        input.events.push(Event::Key {
+            key,
+            pressed: true,
+            repeat: false,
+        });
+        puzzle.update(&input, 0.0, size);
+    }
+    assert_eq!(puzzle.repaint_after(), Some(Duration::ZERO));
+    for _ in 0..60 {
+        puzzle.update(&CanvasInput::default(), 1.0 / 60.0, size);
+    }
+    assert_eq!(puzzle.repaint_after(), None);
+
+    let mut apples = App::new(Some(GameId::Apples));
+    let mut digit = CanvasInput::default();
+    digit.events.push(Event::Key {
+        key: Key::Character('1'),
+        pressed: true,
+        repeat: false,
+    });
+    apples.update(&digit, 0.0, size);
+    assert_eq!(apples.repaint_after(), Some(Duration::from_secs(4)));
+    apples.advance_timers(1.0); // UI controls may consume input, but not elapsed time.
+    assert_eq!(apples.repaint_after(), Some(Duration::from_secs(3)));
+    apples.update(&CanvasInput::default(), 3.0, size);
+    assert_eq!(apples.repaint_after(), None);
+}

@@ -3372,6 +3372,7 @@ name = "wgame"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "futures",
  "glam",
  "half",
  "log",
@@ -3423,6 +3424,7 @@ dependencies = [
  "egui",
  "egui-wgpu",
  "egui-winit",
+ "futures",
  "web-sys",
  "wgame",
  "wgpu",

@@ -70,6 +70,16 @@ impl App {
     pub fn active_id(&self) -> Option<GameId> {
         self.active.as_ref().map(Game::id)
     }
+    /// Keep wall-clock timers moving on frames consumed by UI controls.
+    pub fn advance_timers(&mut self, dt: f32) {
+        if let Some(Game::Apples(game)) = &mut self.active {
+            game.advance_timer(dt);
+        }
+    }
+    /// Next game animation/timer deadline. Input and egui repaints wake separately.
+    pub fn repaint_after(&self) -> Option<std::time::Duration> {
+        self.active.as_ref().and_then(Game::repaint_after)
+    }
     /// Returns false when Escape is pressed in the launcher.
     pub fn update(&mut self, input: &CanvasInput, dt: f32, size: Vec2) -> bool {
         self.pointer = input.pointer;

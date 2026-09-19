@@ -25,6 +25,9 @@ All images and fonts are embedded; the binary works from any directory.
 Game artwork and launcher preview tiles use the wgame canvas. Navigation,
 settings, and scores use egui. Game controls sit in a left sidebar, wrapping and
 scrolling on small windows.
+The launcher, Letters, settled 2048 boards, and paused/finished Moon Lander
+sleep between input or UI repaint requests. Apples wakes when a pending number
+expires; active flight, exhaust, mouse movement, and tile animations keep drawing.
 2048 settings and font selectors are collapsed by default. Use **Помощь** for
 keyboard controls. Click the canvas to give it keyboard focus; using a game
 control returns focus to the canvas automatically.

@@ -62,7 +62,20 @@ async fn run(
     let mut assets = Assets::new(&lib)?;
     let mut last = Instant::now();
     let mut frames = 0;
-    while let Some(mut frame) = host.next_frame().await? {
+    let mut followup = false;
+    let mut focused = true;
+    loop {
+        let delay = if smoke || frames == 0 || followup {
+            Some(std::time::Duration::ZERO)
+        } else if focused {
+            app.borrow().repaint_after()
+        } else {
+            None
+        };
+        host.wait_for_update(delay).await;
+        let Some(mut frame) = host.next_frame().await? else {
+            break;
+        };
         let now = Instant::now();
         let reset = frame
             .input()
@@ -72,17 +85,33 @@ async fn run(
         let dt = if reset || !frame.visible() || !frame.input().window_focused {
             0.0
         } else {
-            (now - last).as_secs_f32().min(0.04)
+            let elapsed = (now - last).as_secs_f32();
+            if app.borrow().repaint_after() == Some(std::time::Duration::ZERO) {
+                elapsed.min(0.04)
+            } else {
+                elapsed
+            }
         };
         last = now;
         let (width, height) = frame.logical_size();
         let size = Vec2::new(width as f32, height as f32);
+        focused = frame.input().window_focused;
         let mut app = app.borrow_mut();
+        let previous_repaint = app.repaint_after();
         let (consumed, running) = app.apply_ui(std::mem::take(&mut *actions.borrow_mut()));
         if !running || (!consumed && !app.update(frame.input(), dt, size)) {
             frame.discard();
             break;
         }
+        if consumed {
+            app.advance_timers(dt);
+        }
+        // Layout precedes simulation; one follow-up makes changed controls visible.
+        followup = consumed
+            || !frame.input().events.is_empty()
+            || (focused
+                && (previous_repaint == Some(std::time::Duration::ZERO)
+                    || (previous_repaint.is_some() && app.repaint_after().is_none())));
         assets.set_scale_factor(frame.scale_factor());
         frame.clear(color::BLACK);
         if frame.visible() {

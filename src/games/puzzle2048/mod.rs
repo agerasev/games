@@ -85,6 +85,9 @@ impl Game {
             self.pending.push_back(direction);
         }
     }
+    pub(crate) fn repaint_after(&self) -> Option<std::time::Duration> {
+        (self.animation.is_some() || !self.pending.is_empty()).then_some(std::time::Duration::ZERO)
+    }
     pub fn update(&mut self, input: &CanvasInput, dt: f32, size: Vec2) {
         if size != self.last_size || input.events.contains(&Event::Cancelled) {
             self.swipe = None;

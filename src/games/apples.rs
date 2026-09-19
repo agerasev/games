@@ -144,9 +144,19 @@ impl Game {
             _ => {}
         }
     }
-    pub fn update(&mut self, input: &CanvasInput, dt: f32) {
+    pub(crate) fn repaint_after(&self) -> Option<std::time::Duration> {
+        self.pending
+            .map(|_| std::time::Duration::from_secs_f32(self.cooldown.max(0.0)))
+    }
+    pub(crate) fn advance_timer(&mut self, dt: f32) {
         self.cooldown = (self.cooldown - dt).max(0.0);
-        if self.cooldown == 0.0 || input.events.contains(&Event::Cancelled) {
+        if self.cooldown == 0.0 {
+            self.pending = None;
+        }
+    }
+    pub fn update(&mut self, input: &CanvasInput, dt: f32) {
+        self.advance_timer(dt);
+        if input.events.contains(&Event::Cancelled) {
             self.pending = None;
         }
         for key in pressed_keys(input) {
