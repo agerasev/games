@@ -82,19 +82,19 @@ impl App {
             });
         });
         if let Some(game) = &self.active {
-            let max_height = (ui.available_height() * 0.5).max(40.0);
-            egui::Frame::side_top_panel(ui.style()).show(ui, |ui| {
-                ui.set_min_width(ui.available_width());
-                egui::ScrollArea::vertical()
-                    .max_height(max_height)
-                    .show(ui, |ui| {
+            // Keep room for the canvas even in a narrow portrait window.
+            let width = (ui.available_width() * 0.45).min(240.0);
+            egui::Panel::left("game-controls")
+                .exact_size(width)
+                .show(ui, |ui| {
+                    egui::ScrollArea::vertical().show(ui, |ui| {
                         ui.push_id(game.id().slug(), |ui| {
                             actions
                                 .0
                                 .extend(game.controls(ui).into_iter().map(Action::Game));
                         });
                     });
-            });
+                });
         }
         let response = egui::CentralPanel::default()
             .frame(egui::Frame::NONE)

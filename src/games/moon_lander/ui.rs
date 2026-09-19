@@ -65,7 +65,7 @@ impl Game {
         let mut control = Control::default();
         ui.horizontal_wrapped(|ui| {
             ui.add_enabled_ui(f.status == Status::Flying && (!self.started || !self.paused), |ui| {
-                ui.horizontal(|ui| {
+                ui.horizontal_wrapped(|ui| {
                     let left = ui.button("A / <").on_hover_text("Удерживайте для наклона влево").is_pointer_button_down_on();
                     control.thrust = ui.button("Тяга / Space").on_hover_text("Удерживайте для работы двигателя").is_pointer_button_down_on();
                     let right = ui.button("D / >").on_hover_text("Удерживайте для наклона вправо").is_pointer_button_down_on();

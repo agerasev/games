@@ -23,7 +23,8 @@ cargo run --locked --release -- apples
 
 All images and fonts are embedded; the binary works from any directory.
 Game artwork and launcher preview tiles use the wgame canvas. Navigation,
-settings, and scores use egui, with controls that wrap and scroll on small windows.
+settings, and scores use egui. Game controls sit in a left sidebar, wrapping and
+scrolling on small windows.
 2048 settings and font selectors are collapsed by default. Use **Помощь** for
 keyboard controls. Click the canvas to give it keyboard focus; using a game
 control returns focus to the canvas automatically.

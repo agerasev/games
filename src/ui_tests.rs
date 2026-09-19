@@ -218,7 +218,7 @@ fn lander_held_controls_advance_release_and_pause_on_focus_loss() {
         h.frame(Vec::new(), false);
         h.frame(Vec::new(), false);
         let pos = h.text("Тяга / Space").center();
-        assert!(pos.y < h.canvas.min.y);
+        assert!(pos.x < h.canvas.min.x);
         assert_eq!(
             h.frame(
                 vec![
