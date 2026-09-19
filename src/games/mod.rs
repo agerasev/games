@@ -2,6 +2,7 @@ mod apples;
 mod letters;
 pub mod moon_lander;
 mod mouse;
+pub mod parking;
 pub mod puzzle2048;
 
 use crate::draw::Painter;

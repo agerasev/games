@@ -4,3 +4,6 @@
 [submodule "phy"]
 	path = phy
 	url = https://github.com/agerasev/phy.git
+[submodule "geom2"]
+	path = geom2
+	url = https://github.com/agerasev/geom2.git
