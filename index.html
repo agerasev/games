@@ -12,8 +12,8 @@
   </style>
   
 <script type="module">
-import init, * as bindings from '/games/yarik-games-c2e4d43012914fc1.js';
-const wasm = await init({ module_or_path: '/games/yarik-games-c2e4d43012914fc1_bg.wasm' });
+import init, * as bindings from '/games/yarik-games-e20a7e647e38c8e3.js';
+const wasm = await init({ module_or_path: '/games/yarik-games-e20a7e647e38c8e3_bg.wasm' });
 
 
 window.wasmBindings = bindings;
@@ -22,7 +22,7 @@ window.wasmBindings = bindings;
 dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
 
 </script>
-<link rel="modulepreload" href="/games/yarik-games-c2e4d43012914fc1.js" crossorigin="anonymous" integrity="sha384-401lJNNUDZLuD8ISh4vr3PAO4VResdrxTzcgk3EYelioW4GCJG6oIzWHMsgbiGLR"><link rel="preload" href="/games/yarik-games-c2e4d43012914fc1_bg.wasm" crossorigin="anonymous" integrity="sha384-zgIwiTQjzYA782xCPIgXEp5PCba5mjcfxTRa3zuHv4epaxvyIwnel5/hR5EmUliT" as="fetch" type="application/wasm"></head>
+<link rel="modulepreload" href="/games/yarik-games-e20a7e647e38c8e3.js" crossorigin="anonymous" integrity="sha384-82smuZ/9tws5IglskamOJiVd4Sjj73KLFrThla1wktYQLmD9Sdzu/HkygPwD2qgN"><link rel="preload" href="/games/yarik-games-e20a7e647e38c8e3_bg.wasm" crossorigin="anonymous" integrity="sha384-LhDgLxaT2COsqKfL5I1vy5j+knBi5tG674wOl3/NDTh3qsa8+7OC26Tz4bWn+Mey" as="fetch" type="application/wasm"></head>
 <body>
   <div id="content"><canvas id="canvas" tabindex="0" aria-label="Считаем яблоки, Буквы, Мышь и сыр, 2048 и Фибоначчи, Лунный модуль, Парковка"></canvas></div>
   <noscript>Для игры включите JavaScript. Требуется WebGL2.</noscript>
