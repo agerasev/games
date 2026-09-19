@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Games</title>
+  <style>
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: black; }
+    #content { width: 100%; height: 100%; contain: size; }
+    /* Let winit's ResizeObserver follow the viewport rather than its initial inline size. */
+    canvas { display: block; width: 100% !important; height: 100% !important; outline: none; touch-action: none; }
+  </style>
+  
+<script type="module">
+import init, * as bindings from '/games/yarik-games-c2e4d43012914fc1.js';
+const wasm = await init({ module_or_path: '/games/yarik-games-c2e4d43012914fc1_bg.wasm' });
+
+
+window.wasmBindings = bindings;
+
+
+dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
+
+</script>
+<link rel="modulepreload" href="/games/yarik-games-c2e4d43012914fc1.js" crossorigin="anonymous" integrity="sha384-401lJNNUDZLuD8ISh4vr3PAO4VResdrxTzcgk3EYelioW4GCJG6oIzWHMsgbiGLR"><link rel="preload" href="/games/yarik-games-c2e4d43012914fc1_bg.wasm" crossorigin="anonymous" integrity="sha384-zgIwiTQjzYA782xCPIgXEp5PCba5mjcfxTRa3zuHv4epaxvyIwnel5/hR5EmUliT" as="fetch" type="application/wasm"></head>
+<body>
+  <div id="content"><canvas id="canvas" tabindex="0" aria-label="Считаем яблоки, Буквы, Мышь и сыр, 2048 и Фибоначчи, Лунный модуль, Парковка"></canvas></div>
+  <noscript>Для игры включите JavaScript. Требуется WebGL2.</noscript>
+</body>
+</html>
