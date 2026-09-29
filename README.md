@@ -4,12 +4,10 @@ Walk through a seeded forest with animated, layered sprites. Extracted from
 `yarik-games`'s `running` game and migrated from Macroquad to wgame.
 
 ```sh
-git submodule update --init --recursive
 cargo run --locked --release
 ```
 
-The wgame submodule follows the sibling `bounce` and `gravity` projects. Images
-and animation metadata are embedded, so the binary runs from any directory.
+Images and animation metadata are embedded, so the binary runs from any directory.
 
 ## Controls
 
@@ -51,3 +49,23 @@ cargo run --locked -- --smoke
 
 `--smoke` renders twelve frames and exits on desktop. Tests cover movement,
 focus cancellation, animation timing, sprite flipping and embedded metadata.
+
+## Local library development
+
+Normal builds use the crates.io releases recorded in `Cargo.lock`. To work on
+the libraries alongside this game, check out `../wgame` and opt in from this
+repository's root:
+
+```sh
+cargo run --config .cargo/local-libs.toml --release
+```
+
+The patches in [`.cargo/local-libs.toml`](.cargo/local-libs.toml) select the sibling
+checkouts, including wgame's internal workspace dependencies. Local package
+versions must still satisfy `Cargo.toml`. Local builds update `Cargo.lock`; keep
+those changes out of release commits and restore the committed lockfile when
+returning to registry builds.
+
+For repeated local builds or Trunk, copy that file to the ignored
+`.cargo/config.toml` and run `cargo check` once to update the local lockfile. Remove
+that config and restore the committed lockfile to use the published versions again.
