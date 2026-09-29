@@ -1,5 +1,13 @@
 {
-  "source_commit": "33915ce842a03e8adc96f7639a311ecbc31edd8e",
+  "source_commit": "fbb9b6a54518e7930110df266d6a6b06e96af29c",
   "source_branch": "wgame",
-  "public_url": "/games/"
+  "public_url": "/games/",
+  "library_versions": {
+    "geom2": "0.1.0",
+    "phy": "0.2.0",
+    "wgame": "0.1.0",
+    "wgame-egui": "0.1.0"
+  },
+  "built_at": "2026-09-29T09:19:54.529806+00:00",
+  "build_command": "./scripts/build-web.sh /games/"
 }
