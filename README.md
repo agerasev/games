@@ -10,13 +10,12 @@ repository:
 - **Parking** (`parking`): car steering, reverse parking, tighter spaces, and moving traffic.
 - **2048 / Fibonacci** (`2048`): slide and merge numbers on configurable boards.
 
-[Run](../run/README.md), [Drive](../drive/README.md), and
-[Bounce (formerly Balls)](../bounce/README.md) live in their own repositories.
+[Run](https://github.com/agerasev/run), [Drive](https://github.com/agerasev/drive), and
+[Bounce (formerly Balls)](https://github.com/agerasev/bounce) live in their own repositories.
 
 ## Desktop
 
 ```sh
-git submodule update --init --recursive
 cargo run --locked --release
 # Start a particular game directly:
 cargo run --locked --release -- apples
@@ -84,7 +83,7 @@ Releasing rotation stabilizes the spin but keeps the current tilt. Main thrust
 and steering consume fuel. This is an arcade model with lunar gravity (1.62 m/s²)
 and assisted rotation. Window focus loss pauses the flight; resume explicitly.
 
-The `phy` submodule integrates craft motion with RK4 and cosmetic exhaust with
+`phy` integrates craft motion with RK4 and cosmetic exhaust with
 Euler at a fixed 120 Hz. Exhaust inherits ship velocity, falls under gravity, and
 scatters into short-lived dust on terrain contact. Terrain collision and landing
 rules live in the game. Rendering uses existing wgame shapes; no engine changes
@@ -153,3 +152,23 @@ cover control clicks, repeated layout passes, undo, and resizing. The offscreen
 test covers canvas artwork, alphabet/font changes, counting to 100, 2048 variants
 and animation, lunar flight and exhaust, parking and car movement, portrait sizing, and DPI scaling. Set `GAMES_RENDER_OUTPUT` to an existing
 directory to save PPM images.
+
+## Local library development
+
+Normal builds use the crates.io releases recorded in `Cargo.lock`. To work on
+the libraries alongside this game, check out `../wgame`, `../phy` and `../geom2`
+and opt in from this repository's root:
+
+```sh
+cargo run --config .cargo/local-libs.toml --release
+```
+
+The patches in [`.cargo/local-libs.toml`](.cargo/local-libs.toml) select the sibling
+checkouts, including wgame's internal workspace dependencies. Local package
+versions must still satisfy `Cargo.toml`. Local builds update `Cargo.lock`; keep
+those changes out of release commits and restore the committed lockfile when
+returning to registry builds.
+
+For repeated local builds or Trunk, copy that file to the ignored
+`.cargo/config.toml` and run `cargo check` once to update the local lockfile. Remove
+that config and restore the committed lockfile to use the published versions again.

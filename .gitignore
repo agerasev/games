@@ -4,3 +4,9 @@ __pycache__
 /target
 .vscode
 /dist
+
+# Local dependency checkouts and Cargo overrides.
+/.cargo/config.toml
+/wgame
+/phy
+/geom2

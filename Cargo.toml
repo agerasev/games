@@ -10,10 +10,10 @@ desktop = ["wgame/desktop", "wgame-egui/desktop"]
 web = ["wgame/web", "wgame-egui/web"]
 
 [dependencies]
-phy = { path = "phy" }
-geom2 = { path = "geom2" }
-wgame-egui = { path = "wgame/wgame-egui", default-features = false }
-wgame = { path = "wgame/wgame", default-features = false, features = ["shapes", "image", "typography"] }
+phy = "0.2.0"
+geom2 = "0.1.0"
+wgame-egui = { version = "0.1.0", default-features = false }
+wgame = { version = "0.1.0", default-features = false, features = ["shapes", "image", "typography"] }
 rand = { version = "0.10.2", default-features = false, features = ["alloc"] }
 rand_distr = { version = "0.6.0", default-features = false }
 euclid = "0.22.14"
