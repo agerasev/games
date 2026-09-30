@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -12,8 +12,8 @@
   </style>
   
 <script type="module">
-import init, * as bindings from '/games/yarik-games-47df2e7adec4951.js';
-const wasm = await init({ module_or_path: '/games/yarik-games-47df2e7adec4951_bg.wasm' });
+import init, * as bindings from '/games/yarik-games-29644fb95cf4a62c.js';
+const wasm = await init({ module_or_path: '/games/yarik-games-29644fb95cf4a62c_bg.wasm' });
 
 
 window.wasmBindings = bindings;
@@ -22,9 +22,9 @@ window.wasmBindings = bindings;
 dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
 
 </script>
-<link rel="modulepreload" href="/games/yarik-games-47df2e7adec4951.js" crossorigin="anonymous" integrity="sha384-wNHB31PIbFGzqBSL3cIO2AdUg+13As4QCRchCgS8Q3qZP5ghu9KUcjv7/umCZ5HC"><link rel="preload" href="/games/yarik-games-47df2e7adec4951_bg.wasm" crossorigin="anonymous" integrity="sha384-aMMw/v5ACBoAnoPyxFxZPUzQ5X1Ez10cyXV1rJqwWa17JA1TKK1EDqjCaQIZ284f" as="fetch" type="application/wasm"></head>
+<link rel="modulepreload" href="/games/yarik-games-29644fb95cf4a62c.js" crossorigin="anonymous" integrity="sha384-5jl9Q+p9KgJuU6zQNRvhbgf6GrWn5dbB7dX8UhanzbgtquE2HKzFx3VVWhRgUNy1"><link rel="preload" href="/games/yarik-games-29644fb95cf4a62c_bg.wasm" crossorigin="anonymous" integrity="sha384-NUy/xucDFQf5i02FZSb+ajTQdKGUVk53D633DL/ICO/EfPVF/Q/D7DgevV39kNco" as="fetch" type="application/wasm"></head>
 <body>
-  <div id="content"><canvas id="canvas" tabindex="0" aria-label="Считаем яблоки, Буквы, Мышь и сыр, 2048 и Фибоначчи, Лунный модуль, Парковка, Бег по лесу"></canvas></div>
-  <noscript>Для игры включите JavaScript. Требуется WebGL2.</noscript>
+  <div id="content"><canvas id="canvas" tabindex="0" aria-label="Games canvas"></canvas></div>
+  <noscript>Enable JavaScript to play. WebGL2 is required.</noscript>
 </body>
 </html>

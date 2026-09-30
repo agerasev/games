@@ -1,5 +1,5 @@
 {
-  "source_commit": "a032cd7fe5782dda3cb894ec0cc560b9a28b028d",
+  "source_commit": "ff5a99feb43b6ed869cbb9d551b0489db967c446",
   "source_branch": "wgame",
   "public_url": "/games/",
   "library_versions": {
@@ -8,6 +8,6 @@
     "wgame": "0.1.0",
     "wgame-egui": "0.1.0"
   },
-  "built_at": "2026-09-30T02:20:03.083566+00:00",
+  "built_at": "2026-09-30T02:56:28.618546+00:00",
   "build_command": "./scripts/build-web.sh /games/"
 }
