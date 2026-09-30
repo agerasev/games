@@ -4,6 +4,7 @@ pub mod moon_lander;
 mod mouse;
 pub mod parking;
 pub mod puzzle2048;
+pub(crate) mod running;
 
 use crate::draw::Painter;
 use wgame::{canvas::CanvasInput, glam::Vec2};
@@ -16,18 +17,21 @@ pub enum GameId {
     Puzzle2048,
     MoonLander,
     Parking,
+    Run,
 }
 impl GameId {
-    pub const ALL: [Self; 6] = [
+    pub const ALL: [Self; 7] = [
         Self::Apples,
         Self::Letters,
         Self::Mouse,
         Self::Puzzle2048,
         Self::MoonLander,
         Self::Parking,
+        Self::Run,
     ];
     pub fn slug(self) -> &'static str {
         match self {
+            Self::Run => "run",
             Self::Apples => "apples",
             Self::Letters => "letters",
             Self::Mouse => "mouse",
@@ -41,6 +45,7 @@ impl GameId {
     }
     pub fn title(self) -> &'static str {
         match self {
+            Self::Run => "Бег по лесу",
             Self::Apples => "Считаем яблоки",
             Self::Letters => "Буквы",
             Self::Mouse => "Мышь и сыр",
@@ -51,6 +56,7 @@ impl GameId {
     }
     pub fn short_hint(self) -> &'static str {
         match self {
+            Self::Run => "Стрелки / WASD / колесо",
             Self::Apples => "Цифры / + / - / Enter",
             Self::Letters => "1 / 2 / 3 / 0 / `",
             Self::Mouse => "Стрелки / WASD",
@@ -61,6 +67,7 @@ impl GameId {
     }
     pub fn hint(self) -> &'static str {
         match self {
+            Self::Run => "Стрелки / WASD - движение / колесо - масштаб",
             Self::Apples => "Цифры / + / - / PgUp / PgDn / Enter / ` - шрифт",
             Self::Letters => "1 - русский / 2 - English / 3 - греческий / 0 - цифры / ` - шрифт",
             Self::Mouse => "Стрелки / WASD - движение / Соберите всё!",
@@ -99,6 +106,7 @@ pub enum Game {
     Puzzle2048(puzzle2048::Game),
     MoonLander(moon_lander::Game),
     Parking(parking::Game),
+    Run(running::Game),
 }
 impl Game {
     pub fn new(id: GameId) -> Self {
@@ -109,6 +117,7 @@ impl Game {
             GameId::Puzzle2048 => Self::Puzzle2048(puzzle2048::Game::new()),
             GameId::MoonLander => Self::MoonLander(moon_lander::Game::new()),
             GameId::Parking => Self::Parking(parking::Game::new()),
+            GameId::Run => Self::Run(running::Game::new()),
         }
     }
     pub fn id(&self) -> GameId {
@@ -119,6 +128,7 @@ impl Game {
             Self::Puzzle2048(_) => GameId::Puzzle2048,
             Self::MoonLander(_) => GameId::MoonLander,
             Self::Parking(_) => GameId::Parking,
+            Self::Run(_) => GameId::Run,
         }
     }
     pub(crate) fn action(&mut self, action: Action) {
@@ -134,6 +144,7 @@ impl Game {
     }
     pub(crate) fn controls(&self, ui: &mut wgame_egui::egui::Ui) -> Vec<Action> {
         match self {
+            Self::Run(_) => Vec::new(),
             Self::Parking(game) => game.controls(ui).into_iter().map(Action::Parking).collect(),
             Self::Apples(game) => game.controls(ui).into_iter().map(Action::Apples).collect(),
             Self::Letters(game) => game.controls(ui).into_iter().map(Action::Letters).collect(),
@@ -161,7 +172,7 @@ impl Game {
         match self {
             Self::Apples(game) => game.repaint_after(),
             Self::Letters(_) => None,
-            Self::Mouse(_) => Some(Duration::ZERO),
+            Self::Mouse(_) | Self::Run(_) => Some(Duration::ZERO),
             Self::Puzzle2048(game) => game.repaint_after(),
             Self::MoonLander(game) => game.repaint_after(),
             Self::Parking(game) => game.repaint_after(),
@@ -175,6 +186,7 @@ impl Game {
             Self::Puzzle2048(game) => game.update(input, dt, size),
             Self::MoonLander(game) => game.update(input, dt),
             Self::Parking(game) => game.update(input, dt),
+            Self::Run(game) => game.update(input, dt),
         }
     }
     pub fn draw(&self, painter: &mut Painter<'_>) {
@@ -185,6 +197,7 @@ impl Game {
             Self::Puzzle2048(game) => game.draw(painter),
             Self::MoonLander(game) => game.draw(painter),
             Self::Parking(game) => game.draw(painter),
+            Self::Run(game) => game.draw(painter),
         }
     }
 }

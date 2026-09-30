@@ -207,7 +207,7 @@ fn games_render_after_navigation_resize_and_dpi_changes() {
                 id.slug()
             );
             assert!(
-                matches!(id, GameId::Mouse | GameId::Letters)
+                matches!(id, GameId::Mouse | GameId::Letters | GameId::Run)
                     || rgb
                         .iter()
                         .filter(|p| p[0] > 180 && p[1] > 180 && p[2] > 180)
@@ -218,7 +218,35 @@ fn games_render_after_navigation_resize_and_dpi_changes() {
             );
             assert_ne!(menu, pixels);
             save(&format!("{}-{}", id.slug(), physical.0), physical, &pixels);
-            if id == GameId::Parking {
+            if id == GameId::Run {
+                let mut held = wgame::canvas::InputState::default();
+                held.push(Event::Focused(true));
+                held.finish(true, true, Default::default());
+                held.push(Event::Key {
+                    key: Key::Character('d'),
+                    pressed: true,
+                    repeat: false,
+                });
+                let input = held.finish(true, true, Default::default());
+                for _ in 0..45 {
+                    app.update(&input, 1.0 / 60.0, logical);
+                }
+                let running = draw(&app, &lib, &assets, physical, scale);
+                assert_ne!(
+                    running, pixels,
+                    "walking must move and animate the character"
+                );
+                save(&format!("run-moving-{}", physical.0), physical, &running);
+                let mut zoom = CanvasInput::default();
+                zoom.window_focused = true;
+                zoom.events.push(Event::Scroll(Vec2::new(0.0, 40.0)));
+                app.update(&zoom, 0.0, logical);
+                assert_ne!(
+                    draw(&app, &lib, &assets, physical, scale),
+                    running,
+                    "wheel must zoom the forest"
+                );
+            } else if id == GameId::Parking {
                 let mut held = wgame::canvas::InputState::default();
                 held.push(Event::Focused(true));
                 held.push(Event::Key {

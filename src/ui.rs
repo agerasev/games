@@ -74,14 +74,19 @@ impl App {
                     });
                 } else {
                     ui.heading("Игры");
-                    ui.label("Выберите игру / 1–6 / стрелки и Enter");
+                    ui.label(format!(
+                        "Выберите игру / 1–{} / стрелки и Enter",
+                        crate::games::GameId::ALL.len()
+                    ));
                     if ui.button("Выход / Esc").clicked() {
                         actions.0.push(Action::Quit);
                     }
                 }
             });
         });
-        if let Some(game) = &self.active {
+        if let Some(game) = &self.active
+            && game.id() != crate::games::GameId::Run
+        {
             // Keep room for the canvas even in a narrow portrait window.
             let width = (ui.available_width() * 0.45).min(240.0);
             egui::Panel::left("game-controls")

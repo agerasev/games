@@ -9,8 +9,9 @@ repository:
 - **Moon Lander** (`lander`): fuel-limited lunar flight, three landing sites, and physical exhaust particles.
 - **Parking** (`parking`): car steering, reverse parking, tighter spaces, and moving traffic.
 - **2048 / Fibonacci** (`2048`): slide and merge numbers on configurable boards.
+- **Run** (`run`): walk through a seeded forest with layered sprite animation.
 
-[Run](https://github.com/agerasev/run), [Drive](https://github.com/agerasev/drive), and
+[Drive](https://github.com/agerasev/drive) and
 [Bounce (formerly Balls)](https://github.com/agerasev/bounce) live in their own repositories.
 
 ## Desktop
@@ -24,14 +25,14 @@ cargo run --locked --release -- apples
 All images and fonts are embedded; the binary works from any directory.
 Game artwork and launcher preview tiles use the wgame canvas. Navigation,
 settings, and scores use egui. Game controls sit in a left sidebar, wrapping and
-scrolling on small windows.
+scrolling on small windows. Run uses the full canvas below the navigation bar.
 The launcher, Letters, settled 2048 boards, idle Parking, and paused/finished Moon Lander
 sleep between input or UI repaint requests. Apples wakes when a pending number
-expires; active flight, exhaust, mouse movement, car motion, traffic, and tile animations keep drawing.
+expires; active flight, exhaust, mouse movement, Run sprite animation, car motion, traffic, and tile animations keep drawing.
 2048 settings and font selectors are collapsed by default. Use **Помощь** for
 keyboard controls. Click the canvas to give it keyboard focus; using a game
 control returns focus to the canvas automatically.
-The launcher supports clicking, keys **1–6**, or arrows and **Enter**.
+The launcher supports clicking, keys **1–7**, or arrows and **Enter**.
 **Escape** or **Меню** returns to the launcher; Escape in the launcher quits.
 
 ## Controls
@@ -43,6 +44,7 @@ The launcher supports clicking, keys **1–6**, or arrows and **Enter**.
 | Mouse | **Arrow keys** or **WASD** move; collecting food grows the mouse. **Заново** restarts the round. A new round starts one second after the last item is collected. |
 | Moon Lander | Hold **Space/Up/W** for thrust; **Left/A**, **Right/D** tilt. **P** pauses/resumes, **R** restarts, **N** advances after landing. Egui provides hold-to-fly buttons and a site selector. |
 | Parking | **W/Up**, **S/Down** accelerate forward/reverse; **A/Left**, **D/Right** steer; **Space** brakes. **P** pauses/resumes, **R** restarts, **N** advances after parking. Sidebar: gear selector, retained steering slider, and hold-to-drive/brake buttons. |
+| Run | **Arrows/WASD** move; mouse wheel zooms; **Escape** returns to the launcher. |
 | 2048 | **Arrows/WASD** or a swipe/drag on the board moves tiles. **U/Z/Backspace** undoes; **R** restarts. **3–6** select board size, **F** switches merge rules, **T** switches spawn rules. Open **Настройки** for size, merge rules, and spawn rules. Undo/restart stay visible. |
 
 Apples keeps a number pending while another digit could fit the selected range
@@ -113,6 +115,21 @@ provide the rest; the engine needs no additional features. Stopped cars in quiet
 levels sleep between inputs; motion, steering, traffic, and the parking timer
 request frames only while active.
 
+## Run
+
+Start directly with `cargo run --locked --release -- run`, or choose
+**Бег по лесу** in the launcher. Diagonal movement has the same speed as movement
+along one axis. The camera stays centered on the forest; zoom is bounded.
+Trees and the character use nearest-neighbor sprite filtering and draw back to
+front by ground position, with each object's layers kept together. Losing window
+focus pauses movement and animation. Leaving Run and reopening it resets the
+character, zoom, and seeded forest.
+
+Run's standalone Git history is preserved as a second parent of the merge that
+restores it to this collection; the imported tip is
+[`9ca849c`](https://github.com/agerasev/run/commit/9ca849c48583946a04871cb467e15f1f871bb4d8).
+The sprite sheets and animation metadata are unchanged under `assets/running/`.
+
 ## Browser (WebGL2)
 
 ```sh
@@ -145,12 +162,14 @@ cargo run --locked -- mouse --smoke
 cargo run --locked -- 2048 --smoke
 cargo run --locked -- lander --smoke
 cargo run --locked -- parking --smoke
+cargo run --locked -- run --smoke
 ```
 
 `--smoke` presents twelve frames through the egui host and exits. CPU UI tests
 cover control clicks, repeated layout passes, undo, and resizing. The offscreen
 test covers canvas artwork, alphabet/font changes, counting to 100, 2048 variants
-and animation, lunar flight and exhaust, parking and car movement, portrait sizing, and DPI scaling. Set `GAMES_RENDER_OUTPUT` to an existing
+and animation, lunar flight and exhaust, parking and car movement, Run movement
+and zoom, portrait sizing, and DPI scaling. Set `GAMES_RENDER_OUTPUT` to an existing
 directory to save PPM images.
 
 ## Local library development

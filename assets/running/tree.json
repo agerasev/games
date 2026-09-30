@@ -1,0 +1,10 @@
+{
+    "trunk": {
+        "size": [60, 120],
+        "positions": [[0, 0]]
+    },
+    "leaves": {
+        "size": [60, 120],
+        "positions": [[60, 0]]
+    }
+}

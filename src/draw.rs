@@ -25,6 +25,7 @@ pub enum Sprite {
 
 pub struct Assets {
     textures: HashMap<Sprite, Texture>,
+    pub(crate) running: crate::games::running::Assets,
     fonts: [Font; 2],
     rasters: [FontTexture; 2],
     scale_factor: f64,
@@ -75,6 +76,7 @@ impl Assets {
         let rasters = fonts.each_ref().map(|font| font.rasterize(128.0));
         Ok(Self {
             textures,
+            running: crate::games::running::Assets::new(lib)?,
             fonts,
             rasters,
             scale_factor: 1.0,
@@ -197,8 +199,8 @@ mod tests {
             .flat_map(|id| [id.title(), id.hint(), id.short_hint()])
             .chain([
                 "Меню",
-                "Выберите игру / 1-6 / стрелки и Enter / Esc - выход",
-                "1. 2. 3. 4. 5. 6.",
+                "Выберите игру / 1-7 / стрелки и Enter / Esc - выход",
+                "1. 2. 3. 4. 5. 6. 7.",
                 "Space - тяга / A, D - наклон / A / < / D / >",
             ])
         {

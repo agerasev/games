@@ -77,6 +77,11 @@ fn static_games_sleep_and_timed_work_stops_requesting_frames() {
         App::new(Some(GameId::Mouse)).repaint_after(),
         Some(Duration::ZERO)
     );
+    assert_eq!(
+        App::new(Some(GameId::Run)).repaint_after(),
+        Some(Duration::ZERO)
+    );
+    assert_eq!(GameId::parse("run"), Some(GameId::Run));
     let mut puzzle = App::new(Some(GameId::Puzzle2048));
     let size = Vec2::new(640.0, 480.0);
     for key in [Key::ArrowLeft, Key::ArrowRight] {
