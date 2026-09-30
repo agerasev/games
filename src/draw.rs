@@ -196,7 +196,17 @@ mod tests {
             FontData::new(include_bytes!("../assets/free-sans-bold.ttf").to_vec(), 0).unwrap();
         for text in GameId::ALL
             .into_iter()
-            .flat_map(|id| [id.title(), id.hint(), id.short_hint()])
+            .flat_map(|id| {
+                crate::language::Language::ALL
+                    .into_iter()
+                    .flat_map(move |language| {
+                        [
+                            id.title(language),
+                            id.hint(language),
+                            id.short_hint(language),
+                        ]
+                    })
+            })
             .chain([
                 "Меню",
                 "Выберите игру / 1-7 / стрелки и Enter / Esc - выход",

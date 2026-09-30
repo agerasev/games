@@ -6,7 +6,7 @@ pub mod parking;
 pub mod puzzle2048;
 pub(crate) mod running;
 
-use crate::draw::Painter;
+use crate::{draw::Painter, language::Language};
 use wgame::{canvas::CanvasInput, glam::Vec2};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -43,38 +43,38 @@ impl GameId {
     pub fn parse(value: &str) -> Option<Self> {
         Self::ALL.into_iter().find(|id| id.slug() == value)
     }
-    pub fn title(self) -> &'static str {
+    pub fn title(self, language: Language) -> &'static str {
         match self {
-            Self::Run => "Бег по лесу",
-            Self::Apples => "Считаем яблоки",
-            Self::Letters => "Буквы",
-            Self::Mouse => "Мышь и сыр",
-            Self::Puzzle2048 => "2048 / Фибоначчи",
-            Self::MoonLander => "Лунный модуль",
-            Self::Parking => "Парковка",
+            Self::Run => language.text("Forest Run", "Бег по лесу"),
+            Self::Apples => language.text("Count the Fruit", "Считаем яблоки"),
+            Self::Letters => language.text("Letters", "Буквы"),
+            Self::Mouse => language.text("Mouse and Cheese", "Мышь и сыр"),
+            Self::Puzzle2048 => language.text("2048 / Fibonacci", "2048 / Фибоначчи"),
+            Self::MoonLander => language.text("Moon Lander", "Лунный модуль"),
+            Self::Parking => language.text("Parking", "Парковка"),
         }
     }
-    pub fn short_hint(self) -> &'static str {
+    pub fn short_hint(self, language: Language) -> &'static str {
         match self {
-            Self::Run => "Стрелки / WASD / колесо",
-            Self::Apples => "Цифры / + / - / Enter",
+            Self::Run => language.text("Arrows / WASD / wheel", "Стрелки / WASD / колесо"),
+            Self::Apples => language.text("Digits / + / - / Enter", "Цифры / + / - / Enter"),
             Self::Letters => "1 / 2 / 3 / 0 / `",
-            Self::Mouse => "Стрелки / WASD",
-            Self::Puzzle2048 => "Стрелки / свайп / U / R",
+            Self::Mouse => language.text("Arrows / WASD", "Стрелки / WASD"),
+            Self::Puzzle2048 => language.text("Arrows / swipe / U / R", "Стрелки / свайп / U / R"),
             Self::MoonLander => "Space / A / D / P / R",
             Self::Parking => "WASD / Space / P / R",
         }
     }
-    pub fn hint(self) -> &'static str {
+    pub fn hint(self, language: Language) -> &'static str {
         match self {
-            Self::Run => "Стрелки / WASD - движение / колесо - масштаб",
-            Self::Apples => "Цифры / + / - / PgUp / PgDn / Enter / ` - шрифт",
-            Self::Letters => "1 - русский / 2 - English / 3 - греческий / 0 - цифры / ` - шрифт",
-            Self::Mouse => "Стрелки / WASD - движение / Соберите всё!",
-            Self::Puzzle2048 => "Стрелки / WASD / свайп - ход / U - отмена / R - заново",
-            Self::Parking => "W, S - газ / A, D - руль / Space - тормоз / P - пауза / R - заново",
+            Self::Run => language.text("Arrows / WASD - move / wheel - zoom", "Стрелки / WASD - движение / колесо - масштаб"),
+            Self::Apples => language.text("Digits / + / - / PgUp / PgDn / Enter / ` - font", "Цифры / + / - / PgUp / PgDn / Enter / ` - шрифт"),
+            Self::Letters => language.text("1 - Russian / 2 - English / 3 - Greek / 0 - digits / ` - font", "1 - русский / 2 - английский / 3 - греческий / 0 - цифры / ` - шрифт"),
+            Self::Mouse => language.text("Arrows / WASD - move / Collect everything!", "Стрелки / WASD - движение / Соберите всё!"),
+            Self::Puzzle2048 => language.text("Arrows / WASD / swipe - move / U - undo / R - restart", "Стрелки / WASD / свайп - ход / U - отмена / R - заново"),
+            Self::Parking => language.text("W, S - drive / A, D - steer / Space - brake / P - pause / R - restart", "W, S - газ / A, D - руль / Space - тормоз / P - пауза / R - заново"),
             Self::MoonLander => {
-                "Space / W / вверх - тяга / A, D / влево, вправо - наклон / P - пауза / R - заново / N - следующая посадка"
+                language.text("Space / W / up - thrust / A, D / left, right - tilt / P - pause / R - restart / N - next landing", "Space / W / вверх - тяга / A, D / влево, вправо - наклон / P - пауза / R - заново / N - следующая посадка")
             }
         }
     }
@@ -109,10 +109,10 @@ pub enum Game {
     Run(running::Game),
 }
 impl Game {
-    pub fn new(id: GameId) -> Self {
+    pub fn new(id: GameId, language: Language) -> Self {
         match id {
             GameId::Apples => Self::Apples(apples::Game::new()),
-            GameId::Letters => Self::Letters(letters::Game::default()),
+            GameId::Letters => Self::Letters(letters::Game::new(language)),
             GameId::Mouse => Self::Mouse(mouse::Game::new()),
             GameId::Puzzle2048 => Self::Puzzle2048(puzzle2048::Game::new()),
             GameId::MoonLander => Self::MoonLander(moon_lander::Game::new()),
@@ -142,26 +142,42 @@ impl Game {
             _ => {}
         }
     }
-    pub(crate) fn controls(&self, ui: &mut wgame_egui::egui::Ui) -> Vec<Action> {
+    pub(crate) fn controls(
+        &self,
+        ui: &mut wgame_egui::egui::Ui,
+        language: Language,
+    ) -> Vec<Action> {
         match self {
             Self::Run(_) => Vec::new(),
-            Self::Parking(game) => game.controls(ui).into_iter().map(Action::Parking).collect(),
-            Self::Apples(game) => game.controls(ui).into_iter().map(Action::Apples).collect(),
-            Self::Letters(game) => game.controls(ui).into_iter().map(Action::Letters).collect(),
+            Self::Parking(game) => game
+                .controls(ui, language)
+                .into_iter()
+                .map(Action::Parking)
+                .collect(),
+            Self::Apples(game) => game
+                .controls(ui, language)
+                .into_iter()
+                .map(Action::Apples)
+                .collect(),
+            Self::Letters(game) => game
+                .controls(ui, language)
+                .into_iter()
+                .map(Action::Letters)
+                .collect(),
             Self::MoonLander(game) => game
-                .controls(ui)
+                .controls(ui, language)
                 .into_iter()
                 .map(Action::MoonLander)
                 .collect(),
             Self::Mouse(game) => {
-                if game.controls(ui) {
+                if game.controls(ui, language) {
                     vec![Action::MouseRestart]
                 } else {
                     Vec::new()
                 }
             }
             Self::Puzzle2048(game) => game
-                .controls(ui)
+                .controls(ui, language)
                 .into_iter()
                 .map(Action::Puzzle2048)
                 .collect(),
@@ -189,14 +205,14 @@ impl Game {
             Self::Run(game) => game.update(input, dt),
         }
     }
-    pub fn draw(&self, painter: &mut Painter<'_>) {
+    pub fn draw(&self, painter: &mut Painter<'_>, language: Language) {
         match self {
-            Self::Apples(game) => game.draw(painter),
+            Self::Apples(game) => game.draw(painter, language),
             Self::Letters(game) => game.draw(painter),
             Self::Mouse(game) => game.draw(painter),
-            Self::Puzzle2048(game) => game.draw(painter),
-            Self::MoonLander(game) => game.draw(painter),
-            Self::Parking(game) => game.draw(painter),
+            Self::Puzzle2048(game) => game.draw(painter, language),
+            Self::MoonLander(game) => game.draw(painter, language),
+            Self::Parking(game) => game.draw(painter, language),
             Self::Run(game) => game.draw(painter),
         }
     }

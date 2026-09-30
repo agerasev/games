@@ -33,49 +33,86 @@ pub(crate) enum Action {
     Font(usize),
 }
 
-#[derive(Default)]
 pub struct Game {
     language: usize,
+    follows_language: bool,
     font: usize,
 }
 impl Game {
+    pub fn new(language: crate::language::Language) -> Self {
+        let mut game = Self {
+            language: 1,
+            follows_language: true,
+            font: 0,
+        };
+        game.follow_language(language);
+        game
+    }
+    pub(crate) fn follow_language(&mut self, language: crate::language::Language) {
+        if self.follows_language {
+            self.language = match language {
+                crate::language::Language::English => 1,
+                crate::language::Language::Russian => 0,
+            };
+        }
+    }
+    fn alphabet(&mut self, index: usize) {
+        self.language = index;
+        self.follows_language = false;
+    }
     pub(crate) fn action(&mut self, action: Action) {
         match action {
-            Action::Alphabet(index) => self.language = index,
+            Action::Alphabet(index) => self.alphabet(index),
             Action::Font(index) => self.font = index,
         }
     }
-    pub(crate) fn controls(&self, ui: &mut wgame_egui::egui::Ui) -> Vec<Action> {
+    pub(crate) fn controls(
+        &self,
+        ui: &mut wgame_egui::egui::Ui,
+        language: crate::language::Language,
+    ) -> Vec<Action> {
         let mut actions = Vec::new();
         ui.horizontal_wrapped(|ui| {
-            for (index, label) in ["Русский", "English", "Ελληνικά", "123"]
-                .into_iter()
-                .enumerate()
+            for (index, label) in [
+                language.text("Russian", "Русский"),
+                language.text("English", "Английский"),
+                language.text("Greek", "Греческий"),
+                "123",
+            ]
+            .into_iter()
+            .enumerate()
             {
                 if ui.selectable_label(self.language == index, label).clicked() {
                     actions.push(Action::Alphabet(index));
                 }
             }
         });
-        ui.collapsing("Шрифт", |ui| {
-            ui.horizontal_wrapped(|ui| {
-                for (index, label) in ["Без засечек", "С засечками"].into_iter().enumerate()
-                {
-                    if ui.selectable_label(self.font == index, label).clicked() {
-                        actions.push(Action::Font(index));
+        wgame_egui::egui::CollapsingHeader::new(language.text("Font", "Шрифт"))
+            .id_salt("font")
+            .show(ui, |ui| {
+                ui.horizontal_wrapped(|ui| {
+                    for (index, label) in [
+                        language.text("Sans serif", "Без засечек"),
+                        language.text("Serif", "С засечками"),
+                    ]
+                    .into_iter()
+                    .enumerate()
+                    {
+                        if ui.selectable_label(self.font == index, label).clicked() {
+                            actions.push(Action::Font(index));
+                        }
                     }
-                }
+                });
             });
-        });
         actions
     }
     pub fn update(&mut self, input: &CanvasInput) {
         for key in pressed_keys(input) {
             match key {
-                Key::Character('1') => self.language = 0,
-                Key::Character('2') => self.language = 1,
-                Key::Character('3') => self.language = 2,
-                Key::Character('0') => self.language = 3,
+                Key::Character('1') => self.alphabet(0),
+                Key::Character('2') => self.alphabet(1),
+                Key::Character('3') => self.alphabet(2),
+                Key::Character('0') => self.alphabet(3),
                 Key::Character('`') => self.font = 1 - self.font,
                 _ => {}
             }
@@ -230,6 +267,28 @@ const NUMBERS: [Letter; 10] = [
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn default_alphabet_follows_language_but_explicit_choices_and_fonts_do_not() {
+        use crate::language::Language;
+        let mut game = Game::new(Language::English);
+        assert_eq!(game.language, 1);
+        game.action(Action::Font(1));
+        game.follow_language(Language::Russian);
+        assert_eq!(game.language, 0);
+        assert_eq!(game.font, 1);
+        game.action(Action::Alphabet(2));
+        game.follow_language(Language::English);
+        assert_eq!(game.language, 2);
+        let mut input = CanvasInput::default();
+        input.events.push(wgame::canvas::Event::Key {
+            key: Key::Character('0'),
+            pressed: true,
+            repeat: false,
+        });
+        game.update(&input);
+        game.follow_language(Language::Russian);
+        assert_eq!(game.language, 3);
+    }
     #[test]
     fn alphabets_have_unique_letters_and_both_cases() {
         for alphabet in [&RUSSIAN[..], &ENGLISH[..], &GREEK[..], &NUMBERS[..]] {

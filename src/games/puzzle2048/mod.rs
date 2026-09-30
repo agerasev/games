@@ -189,8 +189,8 @@ impl Game {
     pub fn board(&self) -> &Board {
         &self.board
     }
-    pub fn draw(&self, painter: &mut Painter<'_>) {
-        view::draw(self, painter);
+    pub fn draw(&self, painter: &mut Painter<'_>, language: crate::language::Language) {
+        view::draw(self, painter, language);
     }
 }
 

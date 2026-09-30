@@ -101,8 +101,8 @@ impl Game {
             self.flight.advance(control, dt);
         }
     }
-    pub fn draw(&self, painter: &mut Painter<'_>) {
-        view::draw(self, painter);
+    pub fn draw(&self, painter: &mut Painter<'_>, language: crate::language::Language) {
+        view::draw(self, painter, language);
     }
 }
 

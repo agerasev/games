@@ -116,8 +116,8 @@ impl Game {
             self.round.advance(self.control, dt.min(0.04));
         }
     }
-    pub fn draw(&self, painter: &mut Painter<'_>) {
-        view::draw(self, painter);
+    pub fn draw(&self, painter: &mut Painter<'_>, language: crate::language::Language) {
+        view::draw(self, painter, language);
     }
 }
 

@@ -82,10 +82,20 @@ impl Game {
             Action::Font(index) => self.font = index,
         }
     }
-    pub(crate) fn controls(&self, ui: &mut wgame_egui::egui::Ui) -> Vec<Action> {
+    pub(crate) fn controls(
+        &self,
+        ui: &mut wgame_egui::egui::Ui,
+        language: crate::language::Language,
+    ) -> Vec<Action> {
         let mut actions = Vec::new();
         ui.horizontal_wrapped(|ui| {
-            for (index, label) in ["Яблоки", "Груши", "Апельсины"].into_iter().enumerate()
+            for (index, label) in [
+                language.text("Apples", "Яблоки"),
+                language.text("Pears", "Груши"),
+                language.text("Oranges", "Апельсины"),
+            ]
+            .into_iter()
+            .enumerate()
             {
                 if ui.selectable_label(self.fruit == index, label).clicked() {
                     actions.push(Action::Fruit(index));
@@ -94,7 +104,10 @@ impl Game {
             ui.separator();
             for max in [10, 100] {
                 if ui
-                    .selectable_label(self.max_number == max, format!("До {max}"))
+                    .selectable_label(
+                        self.max_number == max,
+                        format!("{} {max}", language.text("Up to", "До")),
+                    )
                     .clicked()
                 {
                     actions.push(Action::Range(max));
@@ -106,17 +119,43 @@ impl Game {
                 }
             }
         });
-        ui.collapsing("Шрифт", |ui| {
-            ui.horizontal_wrapped(|ui| {
-                for (index, label) in ["Без засечек", "С засечками"].into_iter().enumerate()
-                {
-                    if ui.selectable_label(self.font == index, label).clicked() {
-                        actions.push(Action::Font(index));
+        wgame_egui::egui::CollapsingHeader::new(language.text("Font", "Шрифт"))
+            .id_salt("font")
+            .show(ui, |ui| {
+                ui.horizontal_wrapped(|ui| {
+                    for (index, label) in [
+                        language.text("Sans serif", "Без засечек"),
+                        language.text("Serif", "С засечками"),
+                    ]
+                    .into_iter()
+                    .enumerate()
+                    {
+                        if ui.selectable_label(self.font == index, label).clicked() {
+                            actions.push(Action::Font(index));
+                        }
                     }
-                }
+                });
             });
-        });
         actions
+    }
+    fn count_text(&self, language: crate::language::Language) -> String {
+        let fruit = &FRUITS[self.fruit];
+        match language {
+            crate::language::Language::Russian => items_text(
+                i64::from(self.number),
+                fruit.stem,
+                fruit.endings,
+                fruit.gender,
+            ),
+            crate::language::Language::English => {
+                let name = ["apple", "pear", "orange"][self.fruit];
+                format!(
+                    "{} {name}{}",
+                    english_number(self.number),
+                    if self.number == 1 { "" } else { "s" }
+                )
+            }
+        }
     }
     fn apply(&mut self, add: i16) {
         self.number = (self.pending.take().unwrap_or(self.number) as i16 + add)
@@ -163,7 +202,7 @@ impl Game {
             self.key(key);
         }
     }
-    pub fn draw(&self, painter: &mut Painter<'_>) {
+    pub fn draw(&self, painter: &mut Painter<'_>, language: crate::language::Language) {
         let size = painter.size;
         let fruit = &FRUITS[self.fruit];
         let top = 0.0;
@@ -248,12 +287,7 @@ impl Game {
             );
         }
         painter.label(
-            &items_text(
-                i64::from(self.number),
-                fruit.stem,
-                fruit.endings,
-                fruit.gender,
-            ),
+            &self.count_text(language),
             rect(
                 result.min_x(),
                 result.min_y() + result.size.height * 0.72,
@@ -264,6 +298,47 @@ impl Game {
             0,
             color::WHITE,
         );
+    }
+}
+
+fn english_number(n: u16) -> String {
+    const SMALL: [&str; 20] = [
+        "zero",
+        "one",
+        "two",
+        "three",
+        "four",
+        "five",
+        "six",
+        "seven",
+        "eight",
+        "nine",
+        "ten",
+        "eleven",
+        "twelve",
+        "thirteen",
+        "fourteen",
+        "fifteen",
+        "sixteen",
+        "seventeen",
+        "eighteen",
+        "nineteen",
+    ];
+    const TENS: [&str; 8] = [
+        "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety",
+    ];
+    match n {
+        0..=19 => SMALL[n as usize].into(),
+        20..=99 => {
+            let tens = TENS[(n / 10 - 2) as usize];
+            if n.is_multiple_of(10) {
+                tens.into()
+            } else {
+                format!("{tens}-{}", SMALL[(n % 10) as usize])
+            }
+        }
+        100 => "one hundred".into(),
+        _ => unreachable!("counting range is at most 100"),
     }
 }
 
@@ -397,6 +472,38 @@ mod tests {
         game.key(Key::Character('1'));
         game.key(Key::Backspace);
         assert_eq!(game.pending, None);
+    }
+    #[test]
+    fn english_counting_handles_teens_tens_and_singular_fruit() {
+        use crate::language::Language;
+        let mut game = Game::new();
+        for (number, expected) in [
+            (0, "zero apples"),
+            (1, "one apple"),
+            (2, "two apples"),
+            (10, "ten apples"),
+            (11, "eleven apples"),
+            (19, "nineteen apples"),
+            (20, "twenty apples"),
+            (21, "twenty-one apples"),
+            (40, "forty apples"),
+            (99, "ninety-nine apples"),
+            (100, "one hundred apples"),
+        ] {
+            game.number = number;
+            assert_eq!(game.count_text(Language::English), expected);
+        }
+        game.fruit = 1;
+        game.number = 1;
+        assert_eq!(game.count_text(Language::English), "one pear");
+        assert_eq!(game.count_text(Language::Russian), "одна груша");
+        game.number = 2;
+        assert_eq!(game.count_text(Language::English), "two pears");
+        game.fruit = 2;
+        assert_eq!(game.count_text(Language::English), "two oranges");
+        for n in 0..=100 {
+            assert!(!english_number(n).is_empty());
+        }
     }
     #[test]
     fn russian_numbers_and_endings() {

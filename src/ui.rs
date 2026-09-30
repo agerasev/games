@@ -9,6 +9,7 @@ enum Action {
     Game(crate::games::Action),
     Back,
     Quit,
+    Language(crate::language::Language),
 }
 
 #[derive(Default)]
@@ -59,27 +60,45 @@ impl App {
         ui: &mut egui::Ui,
         canvas: impl FnOnce(&mut egui::Ui) -> egui::Response,
     ) -> Layout {
+        let language = self.language;
         let mut actions = Actions::default();
         egui::Panel::top("navigation").show(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
                 if let Some(id) = self.active_id() {
-                    if ui.button("Меню / Esc").clicked() {
+                    if ui
+                        .button(language.text("Menu / Esc", "Меню / Esc"))
+                        .clicked()
+                    {
                         actions.0.push(Action::Back);
                     }
-                    ui.heading(id.title());
-                    ui.menu_button("Помощь", |ui| {
+                    ui.heading(id.title(language));
+                    ui.menu_button(language.text("Help", "Помощь"), |ui| {
                         ui.set_max_width(280.0);
-                        ui.label(id.hint());
-                        ui.label("Щёлкните по полю, чтобы вернуть управление с клавиатуры.");
+                        ui.label(id.hint(language));
+                        ui.label(language.text(
+                            "Click the canvas to restore keyboard control.",
+                            "Щёлкните по полю, чтобы вернуть управление с клавиатуры.",
+                        ));
                     });
                 } else {
-                    ui.heading("Игры");
+                    ui.heading(language.text("Games", "Игры"));
                     ui.label(format!(
-                        "Выберите игру / 1–{} / стрелки и Enter",
-                        crate::games::GameId::ALL.len()
+                        "{} / 1–{} / {}",
+                        language.text("Choose a game", "Выберите игру"),
+                        crate::games::GameId::ALL.len(),
+                        language.text("arrows and Enter", "стрелки и Enter")
                     ));
-                    if ui.button("Выход / Esc").clicked() {
+                    if ui
+                        .button(language.text("Quit / Esc", "Выход / Esc"))
+                        .clicked()
+                    {
                         actions.0.push(Action::Quit);
+                    }
+                }
+                ui.separator();
+                for next in crate::language::Language::ALL {
+                    if ui.selectable_label(language == next, next.name()).clicked() {
+                        actions.0.push(Action::Language(next));
                     }
                 }
             });
@@ -96,7 +115,7 @@ impl App {
                         ui.push_id(game.id().slug(), |ui| {
                             actions
                                 .0
-                                .extend(game.controls(ui).into_iter().map(Action::Game));
+                                .extend(game.controls(ui, language).into_iter().map(Action::Game));
                         });
                     });
                 });
@@ -129,6 +148,7 @@ impl App {
                         game.action(action);
                     }
                 }
+                Action::Language(language) => self.set_language(language),
                 Action::Back => self.active = None,
                 Action::Quit => return (true, false),
             }

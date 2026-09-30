@@ -105,7 +105,7 @@ pub(crate) fn preview(p: &mut Painter<'_>, r: Rect<f32>) {
         Vec3::new(0.3, 0.75, 0.98),
     );
 }
-pub(super) fn draw(game: &Game, p: &mut Painter<'_>) {
+pub(super) fn draw(game: &Game, p: &mut Painter<'_>, language: crate::language::Language) {
     let round = &game.round;
     let scale = (p.size.x / WORLD.x).min((p.size.y - 40.0).max(0.0) / WORLD.y);
     if scale <= 0.0 {
@@ -239,26 +239,40 @@ pub(super) fn draw(game: &Game, p: &mut Painter<'_>) {
         },
     );
     p.label(
-        &format!("{:02} / {}", round.index + 1, NAMES[round.index]),
+        &format!(
+            "{:02} / {}",
+            round.index + 1,
+            NAMES[round.index].get(language)
+        ),
         rect(10.0, 8.0, p.size.x - 20.0, 24.0),
         20.0,
         0,
         Vec3::ONE,
     );
     let message = match round.status {
-        Status::Parked => Some(("Припарковано!", "Следующий уровень / N")),
+        Status::Parked => Some((
+            language.text("Parked!", "Припарковано!"),
+            language.text("Next level / N", "Следующий уровень / N"),
+        )),
         Status::Crashed(reason) => Some((
             match reason {
-                Crash::Curb => "Задет бордюр",
-                Crash::ParkedCar => "Задета машина",
-                Crash::Traffic => "Столкновение с потоком",
+                Crash::Curb => language.text("Hit a curb", "Задет бордюр"),
+                Crash::ParkedCar => language.text("Hit a parked car", "Задета машина"),
+                Crash::Traffic => language.text("Traffic collision", "Столкновение с потоком"),
             },
-            "Заново / R",
+            language.text("Restart / R", "Заново / R"),
         )),
-        Status::Driving if !game.started => {
-            Some(("Парковка", "W, S - газ / A, D - руль / Space - тормоз"))
-        }
-        Status::Driving if game.paused => Some(("Пауза", "Продолжить / P")),
+        Status::Driving if !game.started => Some((
+            language.text("Parking", "Парковка"),
+            language.text(
+                "W, S - drive / A, D - steer / Space - brake",
+                "W, S - газ / A, D - руль / Space - тормоз",
+            ),
+        )),
+        Status::Driving if game.paused => Some((
+            language.text("Paused", "Пауза"),
+            language.text("Resume / P", "Продолжить / P"),
+        )),
         _ => None,
     };
     if let Some((title, hint)) = message {

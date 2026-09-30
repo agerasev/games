@@ -3,7 +3,7 @@
 Small games using **wgame** with **wgame-egui** controls, kept together in this
 repository:
 
-- **Apples** (`apples`): count apples, pears, or oranges, with Russian number words.
+- **Apples** (`apples`): count apples, pears, or oranges, with English or Russian number words.
 - **Letters** (`letters`): Russian, English, and Greek alphabets, plus digits.
 - **Mouse and cheese** (`mouse`): collect food, grow, and start another round.
 - **Moon Lander** (`lander`): fuel-limited lunar flight, three landing sites, and physical exhaust particles.
@@ -13,6 +13,17 @@ repository:
 
 [Drive](https://github.com/agerasev/drive) and
 [Bounce (formerly Balls)](https://github.com/agerasev/bounce) live in their own repositories.
+
+## Language
+
+English is the default. Use **English / Русский** in the top bar to change the
+interface and Apples' number words immediately, including during a round.
+The choice lasts until closing or refreshing the application. Switching language
+preserves the current round, settings, score, and undo history.
+
+Letters initially follows the interface language. Choosing an alphabet with its
+buttons or keyboard keeps that choice independent of later language switches;
+Russian, English, Greek, and digits remain available in either interface.
 
 ## Desktop
 
@@ -29,11 +40,11 @@ scrolling on small windows. Run uses the full canvas below the navigation bar.
 The launcher, Letters, settled 2048 boards, idle Parking, and paused/finished Moon Lander
 sleep between input or UI repaint requests. Apples wakes when a pending number
 expires; active flight, exhaust, mouse movement, Run sprite animation, car motion, traffic, and tile animations keep drawing.
-2048 settings and font selectors are collapsed by default. Use **Помощь** for
+2048 settings and font selectors are collapsed by default. Use **Help** for
 keyboard controls. Click the canvas to give it keyboard focus; using a game
 control returns focus to the canvas automatically.
 The launcher supports clicking, keys **1–7**, or arrows and **Enter**.
-**Escape** or **Меню** returns to the launcher; Escape in the launcher quits.
+**Escape** or **Menu** returns to the launcher; Escape in the launcher quits.
 
 ## Controls
 
@@ -41,11 +52,11 @@ The launcher supports clicking, keys **1–7**, or arrows and **Enter**.
 | --- | --- |
 | Apples | Fruit buttons; **10/100** range buttons; digits and **Enter/Space**; **+/−** changes by one; **Page Up/Down** changes by ten; **Backspace/Delete** cancels entry; **`** changes the number font. |
 | Letters | Alphabet buttons or **1/2/3/0** select an alphabet or digits; **`** switches sans/serif fonts. |
-| Mouse | **Arrow keys** or **WASD** move; collecting food grows the mouse. **Заново** restarts the round. A new round starts one second after the last item is collected. |
+| Mouse | **Arrow keys** or **WASD** move; collecting food grows the mouse. **Restart** restarts the round. A new round starts one second after the last item is collected. |
 | Moon Lander | Hold **Space/Up/W** for thrust; **Left/A**, **Right/D** tilt. **P** pauses/resumes, **R** restarts, **N** advances after landing. Egui provides hold-to-fly buttons and a site selector. |
 | Parking | **W/Up**, **S/Down** accelerate forward/reverse; **A/Left**, **D/Right** steer; **Space** brakes. **P** pauses/resumes, **R** restarts, **N** advances after parking. Sidebar: gear selector, retained steering slider, and hold-to-drive/brake buttons. |
 | Run | **Arrows/WASD** move; mouse wheel zooms; **Escape** returns to the launcher. |
-| 2048 | **Arrows/WASD** or a swipe/drag on the board moves tiles. **U/Z/Backspace** undoes; **R** restarts. **3–6** select board size, **F** switches merge rules, **T** switches spawn rules. Open **Настройки** for size, merge rules, and spawn rules. Undo/restart stay visible. |
+| 2048 | **Arrows/WASD** or a swipe/drag on the board moves tiles. **U/Z/Backspace** undoes; **R** restarts. **3–6** select board size, **F** switches merge rules, **T** switches spawn rules. Open **Settings** for size, merge rules, and spawn rules. Undo/restart stay visible. |
 
 Apples keeps a number pending while another digit could fit the selected range
 (e.g. `1 → 10 → 100`). Enter accepts a shorter number; an unfinished entry is
@@ -74,7 +85,7 @@ Rounds and undo history last until leaving the game; they are not saved to disk.
 ## Moon Lander
 
 Start with `cargo run --locked --release -- lander`. Each attempt starts paused;
-press **Старт** or hold a flight control to begin. Landing sites progress from a
+press **Start** or hold a flight control to begin. Landing sites progress from a
 wide plain to a crater crossing and a narrow ledge. Both feet must reach the green
 pad with horizontal speed at most **1.5 m/s**, vertical speed at most **3 m/s**,
 tilt at most **12°**, and rotation at most **26°/s**. Colored telemetry shows the
@@ -93,7 +104,7 @@ or external assets are required. Progress lasts until leaving the game.
 
 ## Parking
 
-Start with `cargo run --locked --release -- parking`. Press **Старт** or hold
+Start with `cargo run --locked --release -- parking`. Press **Start** or hold
 an accelerator to begin. Four lessons introduce an open bay, a narrow bay
 between cars, parallel parking, and two opposing lanes of traffic. Use the level
 menu to practice any lesson. The cyan car is yours; headlights mark its front.
@@ -104,7 +115,7 @@ direction, and hold below **0.12 m/s** for **one second**. The sidebar tracks al
 three conditions. Touching another car or crossing a curb ends the attempt.
 Releasing the accelerator coasts to a stop; selecting the opposite direction
 brakes before reversing. Keyboard steering returns to the sidebar slider's
-setting on release; **Руль прямо** centers that setting. Window focus loss pauses
+setting on release; **Center steering** centers that setting. Window focus loss pauses
 the round, including traffic, until explicitly resumed. Progress is not saved.
 
 `phy` integrates a kinematic bicycle model at 120 Hz. `geom2` provides polygon
@@ -118,7 +129,7 @@ request frames only while active.
 ## Run
 
 Start directly with `cargo run --locked --release -- run`, or choose
-**Бег по лесу** in the launcher. Diagonal movement has the same speed as movement
+**Forest Run** in the launcher. Diagonal movement has the same speed as movement
 along one axis. The camera stays centered on the forest; zoom is bounded.
 Trees and the character use nearest-neighbor sprite filtering and draw back to
 front by ground position, with each object's layers kept together. Losing window
@@ -166,8 +177,8 @@ cargo run --locked -- run --smoke
 ```
 
 `--smoke` presents twelve frames through the egui host and exits. CPU UI tests
-cover control clicks, repeated layout passes, undo, and resizing. The offscreen
-test covers canvas artwork, alphabet/font changes, counting to 100, 2048 variants
+cover control clicks, language switching, repeated layout passes, undo, and
+resizing. The offscreen test covers canvas artwork, alphabet/font changes, counting to 100, 2048 variants
 and animation, lunar flight and exhaust, parking and car movement, Run movement
 and zoom, portrait sizing, and DPI scaling. Set `GAMES_RENDER_OUTPUT` to an existing
 directory to save PPM images.

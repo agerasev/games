@@ -187,7 +187,11 @@ pub struct Flight {
     emission: f32,
 }
 impl Flight {
-    pub const SITES: [&'static str; 3] = ["Море Спокойствия", "Край кратера", "Узкий уступ"];
+    pub const SITES: [crate::language::Text; 3] = [
+        crate::language::Text::new("Sea of Tranquility", "Море Спокойствия"),
+        crate::language::Text::new("Crater rim", "Край кратера"),
+        crate::language::Text::new("Narrow ledge", "Узкий уступ"),
+    ];
     pub fn new(site: usize) -> Self {
         assert!(site < Self::SITES.len());
         let (x, y, vx) = [(60.0, 64.0, 0.0), (28.0, 70.0, 1.5), (92.0, 74.0, -2.0)][site];

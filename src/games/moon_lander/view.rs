@@ -126,7 +126,7 @@ pub(crate) fn preview(p: &mut Painter<'_>, r: Rect<f32>) {
         MINT,
     );
 }
-pub(super) fn draw(game: &Game, p: &mut Painter<'_>) {
+pub(super) fn draw(game: &Game, p: &mut Painter<'_>, language: crate::language::Language) {
     let f = &game.flight;
     let s = (p.size.x / WIDTH).min(p.size.y / HEIGHT);
     if s <= 0.0 {
@@ -239,25 +239,46 @@ pub(super) fn draw(game: &Game, p: &mut Painter<'_>) {
         matches!(f.status, Status::Crashed(_)),
     );
     p.label(
-        &format!("{:02} / {}", f.site + 1, Flight::SITES[f.site]),
+        &format!(
+            "{:02} / {}",
+            f.site + 1,
+            Flight::SITES[f.site].get(language)
+        ),
         rect(12.0, 8.0, p.size.x - 24.0, 24.0),
         20.0,
         0,
         Vec3::new(0.75, 0.82, 0.9),
     );
     let message = match f.status {
-        Status::Landed => Some(("Мягкая посадка!", "Следующая площадка / N")),
+        Status::Landed => Some((
+            language.text("Safe landing!", "Мягкая посадка!"),
+            language.text("Next site / N", "Следующая площадка / N"),
+        )),
         Status::Crashed(reason) => Some((
             match reason {
-                Crash::Terrain => "Посадка вне площадки",
-                Crash::Speed => "Слишком высокая скорость",
-                Crash::Tilt => "Слишком сильный наклон или вращение",
-                Crash::Bounds => "Вы покинули район посадки",
+                Crash::Terrain => language.text("Landed outside the pad", "Посадка вне площадки"),
+                Crash::Speed => language.text("Too fast to land", "Слишком высокая скорость"),
+                Crash::Tilt => language.text(
+                    "Too much tilt or spin",
+                    "Слишком сильный наклон или вращение",
+                ),
+                Crash::Bounds => {
+                    language.text("Left the landing area", "Вы покинули район посадки")
+                }
             },
-            "Заново / R",
+            language.text("Restart / R", "Заново / R"),
         )),
-        Status::Flying if !game.started => Some(("Лунный модуль", "Space - тяга / A, D - наклон")),
-        Status::Flying if game.paused => Some(("Пауза", "Продолжить / P")),
+        Status::Flying if !game.started => Some((
+            language.text("Moon Lander", "Лунный модуль"),
+            language.text(
+                "Space - thrust / A, D - tilt",
+                "Space - тяга / A, D - наклон",
+            ),
+        )),
+        Status::Flying if game.paused => Some((
+            language.text("Paused", "Пауза"),
+            language.text("Resume / P", "Продолжить / P"),
+        )),
         _ => None,
     };
     if let Some((title, hint)) = message {

@@ -98,6 +98,8 @@ async fn run(
         focused = frame.input().window_focused;
         let mut app = app.borrow_mut();
         let previous_repaint = app.repaint_after();
+        #[cfg(target_arch = "wasm32")]
+        let previous_language = app.language();
         let (consumed, running) = app.apply_ui(std::mem::take(&mut *actions.borrow_mut()));
         if !running || (!consumed && !app.update(frame.input(), dt, size)) {
             frame.discard();
@@ -105,6 +107,10 @@ async fn run(
         }
         if consumed {
             app.advance_timers(dt);
+        }
+        #[cfg(target_arch = "wasm32")]
+        if app.language() != previous_language {
+            document_language(app.language())?;
         }
         // Layout precedes simulation; one follow-up makes changed controls visible.
         followup = consumed
@@ -124,6 +130,32 @@ async fn run(
         frames += 1;
         if smoke && frames >= 12 {
             break;
+        }
+    }
+    Ok(())
+}
+
+#[cfg(target_arch = "wasm32")]
+fn document_language(language: yarik_games::language::Language) -> Result<()> {
+    use yarik_games::language::Language;
+    if let Some(document) = web_sys::window().and_then(|window| window.document()) {
+        let attribute_error =
+            |err| wgame::Error::msg(format!("Cannot update document language: {err:?}"));
+        if let Some(element) = document.document_element() {
+            element
+                .set_attribute(
+                    "lang",
+                    match language {
+                        Language::English => "en",
+                        Language::Russian => "ru",
+                    },
+                )
+                .map_err(attribute_error)?;
+        }
+        if let Some(canvas) = document.get_element_by_id("canvas") {
+            canvas
+                .set_attribute("aria-label", language.text("Games canvas", "Игровое поле"))
+                .map_err(attribute_error)?;
         }
     }
     Ok(())

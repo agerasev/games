@@ -152,11 +152,11 @@ pub struct Level {
     pub start: Box2,
     pub traffic: Vec<Traffic>,
 }
-pub const NAMES: [&str; 4] = [
-    "Свободное место",
-    "Между машинами",
-    "Вдоль тротуара",
-    "Час пик",
+pub const NAMES: [crate::language::Text; 4] = [
+    crate::language::Text::new("Open bay", "Свободное место"),
+    crate::language::Text::new("Between cars", "Между машинами"),
+    crate::language::Text::new("Parallel parking", "Вдоль тротуара"),
+    crate::language::Text::new("Rush hour", "Час пик"),
 ];
 impl Level {
     pub fn new(index: usize) -> Self {

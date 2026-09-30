@@ -123,7 +123,7 @@ fn tile(painter: &mut Painter<'_>, area: Rect<f32>, value: u64, rule: Rule, scal
         color::WHITE,
     );
 }
-pub(super) fn draw(game: &Game, painter: &mut Painter<'_>) {
+pub(super) fn draw(game: &Game, painter: &mut Painter<'_>, language: crate::language::Language) {
     let size = painter.size;
     let layout = Layout::new(size);
     let settings = game.board.settings();
@@ -196,7 +196,7 @@ pub(super) fn draw(game: &Game, painter: &mut Painter<'_>) {
         let b = layout.board;
         painter.rectangle(b, Vec4::new(0.02, 0.03, 0.05, 0.78));
         painter.label(
-            "Нет ходов",
+            language.text("No moves left", "Нет ходов"),
             rect(
                 b.min_x() + 10.0,
                 b.center().y - 32.0,
@@ -208,7 +208,7 @@ pub(super) fn draw(game: &Game, painter: &mut Painter<'_>) {
             color::WHITE,
         );
         painter.label(
-            "U - отмена  /  R - заново",
+            language.text("U - undo  /  R - restart", "U - отмена  /  R - заново"),
             rect(
                 b.min_x() + 10.0,
                 b.center().y + 14.0,

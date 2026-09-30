@@ -218,6 +218,25 @@ fn games_render_after_navigation_resize_and_dpi_changes() {
             );
             assert_ne!(menu, pixels);
             save(&format!("{}-{}", id.slug(), physical.0), physical, &pixels);
+            app.set_language(yarik_games::language::Language::Russian);
+            let russian = draw(&app, &lib, &assets, physical, scale);
+            if matches!(
+                id,
+                GameId::Apples | GameId::Letters | GameId::MoonLander | GameId::Parking
+            ) {
+                assert_ne!(
+                    russian,
+                    pixels,
+                    "{} language must change canvas labels/content",
+                    id.slug()
+                );
+            }
+            app.set_language(yarik_games::language::Language::English);
+            assert_eq!(
+                draw(&app, &lib, &assets, physical, scale),
+                pixels,
+                "language round trip must preserve game state"
+            );
             if id == GameId::Run {
                 let mut held = wgame::canvas::InputState::default();
                 held.push(Event::Focused(true));
@@ -283,10 +302,11 @@ fn games_render_after_navigation_resize_and_dpi_changes() {
                 save(&format!("lander-flying-{}", physical.0), physical, &flying);
             } else if id == GameId::Letters {
                 let mut previous = pixels;
-                for c in ['2', '3', '0', '`'] {
+                for c in ['1', '2', '3', '0', '`'] {
                     match c {
+                        '1' => click_control(&mut app, "Russian", logical),
                         '2' => click_control(&mut app, "English", logical),
-                        '3' => click_control(&mut app, "Ελληνικά", logical),
+                        '3' => click_control(&mut app, "Greek", logical),
                         '0' => click_control(&mut app, "123", logical),
                         _ => {
                             app.update(&press(Key::Character(c)), 0.0, logical);
@@ -298,7 +318,7 @@ fn games_render_after_navigation_resize_and_dpi_changes() {
                     previous = next;
                 }
             } else if id == GameId::Apples {
-                click_control(&mut app, "До 100", logical);
+                click_control(&mut app, "Up to 100", logical);
                 for c in "100".chars() {
                     app.update(&press(Key::Character(c)), 0.0, logical);
                 }

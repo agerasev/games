@@ -2,12 +2,14 @@
 
 pub mod draw;
 pub mod games;
+pub mod language;
 pub mod layout;
 
 pub mod ui;
 
 use draw::{Painter, Sprite};
 use games::{Game, GameId};
+use language::Language;
 use layout::{contains, grid, rect};
 use wgame::{
     canvas::{Button, CanvasInput, Event, Key},
@@ -54,6 +56,7 @@ pub fn clicks(input: &CanvasInput) -> impl Iterator<Item = Vec2> + '_ {
 /// input frame so selecting a game cannot also activate one of its controls.
 pub struct App {
     active: Option<Game>,
+    language: Language,
     selection: usize,
     pointer: Option<Vec2>,
     focus_canvas: bool,
@@ -61,10 +64,22 @@ pub struct App {
 impl App {
     pub fn new(game: Option<GameId>) -> Self {
         Self {
-            active: game.map(Game::new),
+            active: game.map(|id| Game::new(id, Language::default())),
+            language: Language::default(),
             selection: 0,
             pointer: None,
             focus_canvas: true,
+        }
+    }
+    pub fn language(&self) -> Language {
+        self.language
+    }
+    /// Change presentation without resetting the current round. Manually chosen
+    /// Letters alphabets remain independent of the interface language.
+    pub fn set_language(&mut self, language: Language) {
+        self.language = language;
+        if let Some(Game::Letters(game)) = &mut self.active {
+            game.follow_language(language);
         }
     }
     pub fn active_id(&self) -> Option<GameId> {
@@ -120,14 +135,14 @@ impl App {
             if let Some(index) = launch {
                 self.focus_canvas = true;
                 self.selection = index;
-                self.active = Some(Game::new(GameId::ALL[index]));
+                self.active = Some(Game::new(GameId::ALL[index], self.language));
             }
         }
         true
     }
     pub fn draw(&self, painter: &mut Painter<'_>) {
         if let Some(game) = &self.active {
-            game.draw(painter);
+            game.draw(painter, self.language);
         } else {
             for (index, (id, cell)) in GameId::ALL
                 .into_iter()
@@ -152,7 +167,13 @@ impl App {
                     GameId::Run => games::running::preview(painter, preview),
                     GameId::Parking => games::parking::preview(painter, preview),
                     GameId::Apples => painter.sprite(Sprite::Apple, preview),
-                    GameId::Letters => painter.label("А а", preview, side * 0.6, 0, color::RED),
+                    GameId::Letters => painter.label(
+                        self.language.text("A a", "А а"),
+                        preview,
+                        side * 0.6,
+                        0,
+                        color::RED,
+                    ),
                     GameId::Puzzle2048 => {
                         painter.rectangle(preview, Vec3::new(0.17, 0.43, 0.62));
                         painter.label("2048", preview, side * 0.3, 0, color::WHITE);
@@ -166,7 +187,7 @@ impl App {
                     }
                 }
                 painter.label(
-                    &format!("{}. {}", index + 1, id.title()),
+                    &format!("{}. {}", index + 1, id.title(self.language)),
                     rect(
                         cell.min_x() + 8.0,
                         cell.max_y() - cell.size.height * 0.2,

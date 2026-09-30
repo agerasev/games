@@ -61,12 +61,24 @@ impl Game {
             .collect();
         self.timeout = 1.0;
     }
-    pub(crate) fn controls(&self, ui: &mut wgame_egui::egui::Ui) -> bool {
+    pub(crate) fn controls(
+        &self,
+        ui: &mut wgame_egui::egui::Ui,
+        language: crate::language::Language,
+    ) -> bool {
         let mut restart = false;
         ui.horizontal_wrapped(|ui| {
-            ui.strong(format!("Собрано: {}", self.total - self.items.len()));
-            ui.label(format!("Осталось: {}", self.items.len()));
-            restart = ui.button("Заново").clicked();
+            ui.strong(format!(
+                "{}: {}",
+                language.text("Collected", "Собрано"),
+                self.total - self.items.len()
+            ));
+            ui.label(format!(
+                "{}: {}",
+                language.text("Remaining", "Осталось"),
+                self.items.len()
+            ));
+            restart = ui.button(language.text("Restart", "Заново")).clicked();
         });
         restart
     }

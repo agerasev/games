@@ -139,7 +139,7 @@ fn preview_tiles_and_egui_back_button_work_after_resize() {
             assert_eq!(h.app.active_id(), Some(id));
             h.frame(Vec::new(), false);
             assert!(h.canvas.height() > 200.0);
-            assert_eq!(h.click("Меню / Esc", true), 1);
+            assert_eq!(h.click("Menu / Esc", true), 1);
             assert_eq!(h.app.active_id(), None);
         }
     }
@@ -184,13 +184,13 @@ fn puzzle_controls_preserve_the_round_and_apply_undo_once_across_passes() {
         let previous = h.puzzle().cells().to_vec();
         let moves = h.puzzle().moves();
         assert!(moves >= 2);
-        h.click("Настройки", false);
+        h.click("Settings", false);
         // Let the collapsing section reach its full height.
         h.frame(Vec::new(), false);
         h.frame(Vec::new(), false);
-        let bounds = h.text("Только 2");
+        let bounds = h.text("Only 2");
         assert!(egui::Rect::from_min_size(egui::Pos2::ZERO, size).contains_rect(bounds));
-        assert_eq!(h.click("Только 2", true), 1);
+        assert_eq!(h.click("Only 2", true), 1);
         assert_eq!(h.puzzle().cells(), previous);
         assert_eq!(h.puzzle().moves(), moves);
         assert!(h.puzzle().can_undo());
@@ -199,7 +199,7 @@ fn puzzle_controls_preserve_the_round_and_apply_undo_once_across_passes() {
             crate::games::puzzle2048::model::Spawn::SmallOnly
         );
         h.frame(Vec::new(), false);
-        assert_eq!(h.click("Отмена / U", true), 1);
+        assert_eq!(h.click("Undo / U", true), 1);
         assert_eq!(h.puzzle().moves(), moves - 1);
         h.frame(Vec::new(), false);
         assert_eq!(h.click("6×6", true), 1);
@@ -217,7 +217,7 @@ fn lander_held_controls_advance_release_and_pause_on_focus_loss() {
         h.app = App::new(Some(GameId::MoonLander));
         h.frame(Vec::new(), false);
         h.frame(Vec::new(), false);
-        let pos = h.text("Тяга / Space").center();
+        let pos = h.text("Thrust / Space").center();
         assert!(pos.x < h.canvas.min.x);
         assert_eq!(
             h.frame(
@@ -268,11 +268,11 @@ fn lander_held_controls_advance_release_and_pause_on_focus_loss() {
         h.app.update(&input, 0.1, canvas);
         assert_eq!(flight(&h.app).2, paused_pos);
         h.frame(Vec::new(), false);
-        assert_eq!(h.click("Продолжить / P", true), 1);
+        assert_eq!(h.click("Resume / P", true), 1);
         h.app.update(&input, 0.1, canvas);
         assert_ne!(flight(&h.app).2, paused_pos);
         h.frame(Vec::new(), false);
-        assert_eq!(h.click("Заново / R", true), 1);
+        assert_eq!(h.click("Restart / R", true), 1);
         assert_eq!(flight(&h.app).0, 100.0);
         assert_eq!(flight(&h.app).2, Vec2::new(60.0, 64.0));
     }
@@ -293,10 +293,10 @@ fn parking_sidebar_drives_reverses_brakes_and_resets() {
         let mut input = CanvasInput::default();
         input.window_focused = true;
         let canvas = Vec2::new(h.canvas.width(), h.canvas.height());
-        for (gear, direction) in [("Вперёд", 1.0), ("Назад", -1.0)] {
+        for (gear, direction) in [("Forward", 1.0), ("Reverse", -1.0)] {
             assert_eq!(h.click(gear, true), 1);
             h.frame(Vec::new(), false);
-            let pos = h.text("Газ / W, S").center();
+            let pos = h.text("Accelerate / W, S").center();
             assert!(pos.x < h.canvas.min.x && pos.y < size.y);
             assert_eq!(
                 h.frame(
@@ -326,7 +326,7 @@ fn parking_sidebar_drives_reverses_brakes_and_resets() {
                 }],
                 true,
             );
-            let pos = h.text("Тормоз / Space").center();
+            let pos = h.text("Brake / Space").center();
             h.frame(
                 vec![
                     egui::Event::PointerMoved(pos),
@@ -355,7 +355,58 @@ fn parking_sidebar_drives_reverses_brakes_and_resets() {
             );
         }
         h.frame(Vec::new(), false);
-        assert_eq!(h.click("Заново / R", true), 1);
+        assert_eq!(h.click("Restart / R", true), 1);
         assert_eq!(telemetry(&h.app).0, start);
     }
+}
+
+#[test]
+fn language_switch_survives_navigation_and_multipass_layout_in_both_sizes() {
+    use crate::language::Language;
+    for size in [egui::vec2(1280.0, 720.0), egui::vec2(320.0, 640.0)] {
+        let mut h = Harness::new(size);
+        assert_eq!(h.app.language(), Language::English);
+        for language in [Language::Russian, Language::English] {
+            assert_eq!(h.click(language.name(), true), 1);
+            h.frame(Vec::new(), false);
+            assert_eq!(h.app.language(), language);
+            for (i, id) in GameId::ALL.into_iter().enumerate() {
+                h.play(Key::Character(char::from(b'1' + i as u8)));
+                assert_eq!(h.app.active_id(), Some(id));
+                h.text(id.title(language));
+                h.text(language.text("Help", "Помощь"));
+                h.text("English");
+                h.text("Русский");
+                assert!(h.canvas.height() > 200.0);
+                assert_eq!(h.click(language.text("Menu / Esc", "Меню / Esc"), true), 1);
+                assert_eq!(h.app.active_id(), None);
+                assert_eq!(h.app.language(), language);
+            }
+        }
+    }
+}
+
+#[test]
+fn changing_language_keeps_puzzle_moves_settings_and_undo_history() {
+    let mut h = Harness::new(egui::vec2(1280.0, 720.0));
+    h.play(Key::Character('4'));
+    h.play(Key::ArrowLeft);
+    h.play(Key::ArrowRight);
+    h.click("Settings", false);
+    h.frame(Vec::new(), false);
+    let cells = h.puzzle().cells().to_vec();
+    let moves = h.puzzle().moves();
+    let score = h.puzzle().score();
+    let settings = h.puzzle().settings();
+    assert!(moves > 0);
+    assert_eq!(h.click("Русский", true), 1);
+    h.frame(Vec::new(), false);
+    h.text("Поле:"); // The expanded settings section keeps its identity across translation.
+    assert_eq!(h.puzzle().cells(), cells);
+    assert_eq!(h.puzzle().moves(), moves);
+    assert_eq!(h.puzzle().score(), score);
+    assert_eq!(h.puzzle().settings(), settings);
+    assert!(h.puzzle().can_undo());
+    assert_eq!(h.click("Отмена / U", true), 1);
+    assert_eq!(h.puzzle().moves(), moves - 1);
 }
